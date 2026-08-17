@@ -6,9 +6,14 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:safe/models/safety_audit_models.dart';
 import 'package:safe/screens/nagpur_safety_screen.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
+import 'package:safe/services/safety_audit_service.dart';
 import 'package:safe/theme/app_theme.dart';
+import 'package:safe/widgets/safety/add_audit_dialog.dart';
+import 'package:safe/widgets/safety/location_detail_sheet.dart';
+import 'package:safe/widgets/safety/safety_marker_layer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LocationScreen extends StatefulWidget {
@@ -49,11 +54,26 @@ class _LocationScreenState extends State<LocationScreen> {
     "🏁 Arriving safely at your Destination",
   ];
 
+  List<SafetyLocation> _safetyLocations = [];
+
   @override
   void initState() {
     super.initState();
     _initNagpurSafety();
+    _fetchSafetyLocations();
     _getCurrentLocation();
+  }
+
+  Future<void> _fetchSafetyLocations() async {
+    final locs = await SafetyAuditService().fetchNearbyLocations(
+      lat: lat ?? 21.1458,
+      lng: long ?? 79.0882,
+    );
+    if (mounted) {
+      setState(() {
+        _safetyLocations = locs;
+      });
+    }
   }
 
   Future<void> _initNagpurSafety() async {
@@ -250,6 +270,35 @@ class _LocationScreenState extends State<LocationScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => AddAuditDialog(
+                initialLat: lat ?? 21.1458,
+                initialLng: long ?? 79.0882,
+                onAuditSubmitted: () {
+                  _fetchSafetyLocations();
+                  if (mounted) setState(() {});
+                },
+              ),
+            );
+          },
+          backgroundColor: AppTheme.primaryPurple,
+          icon: const Icon(Icons.add_location_alt_rounded, color: Colors.white),
+          label: Text(
+            'Audit Safety (+50 Pts)',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -835,6 +884,17 @@ class _LocationScreenState extends State<LocationScreen> {
                     color: _useSafestRoute ? AppTheme.primaryPurple : const Color(0xFF3B82F6),
                   ),
                 ],
+              ),
+              SafetyMarkerLayer(
+                locations: _safetyLocations,
+                onMarkerTapped: (loc) {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (ctx) => LocationDetailSheet(locationId: loc.id),
+                  );
+                },
               ),
               MarkerLayer(
                 markers: [
