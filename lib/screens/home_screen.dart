@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (mounted) setDialogState(() => _secondsRemaining--);
               } else {
                 timer.cancel();
-                if (_escalationAttempt < 3) {
+                if (_escalationAttempt < 2) {
                   if (mounted) {
                     setDialogState(() {
                       _escalationAttempt++;
@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else {
                   Navigator.of(dialogCtx, rootNavigator: true).pop();
                   _isEscalationActive = false;
-                  _executeEmergencyCallAndSms('Automatic Escalation: No response after 3 safety checks.');
+                  _executeEmergencyCallAndSms('Automatic Escalation: No response after 2 safety checks.');
                 }
               }
             });
@@ -236,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 4),
 
                     Text(
-                      'Attempt $_escalationAttempt of 3 (Auto Helpline Call in ${_secondsRemaining + (3 - _escalationAttempt) * 5}s)',
+                      'Attempt $_escalationAttempt of 2 (Auto Helpline Call in ${_secondsRemaining + (2 - _escalationAttempt) * 5}s)',
                       style: GoogleFonts.outfit(
                         color: Colors.white70,
                         fontSize: 12,

@@ -7,7 +7,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 /// Edge AI Acoustic & Voice-to-Text Hotword Engine.
 /// Uses live physical microphone hardware sampling and Speech-to-Text transcription.
-/// Distress signal is ONLY triggered when registered hotwords ("help", "bachao", etc.) are detected at >= 90 dB decibel limit.
+/// Distress signal is ONLY triggered when registered hotwords ("help", "bachao", etc.) are detected at >= 85 dB decibel limit.
 class EdgeAudioEngine {
   static final EdgeAudioEngine _instance = EdgeAudioEngine._internal();
   factory EdgeAudioEngine() => _instance;
@@ -62,7 +62,7 @@ class EdgeAudioEngine {
       // 2. Initialize Speech-To-Text model for continuous hotword tracking
       _initSpeechToText();
 
-      // 3. Initialize NoiseMeter (Decibel Limit set to 90 dB)
+      // 3. Initialize NoiseMeter for live decibel tracking
       _noiseMeter ??= NoiseMeter();
       _noiseSubscription = _noiseMeter!.noise.listen(
         (NoiseReading noiseReading) {
@@ -71,10 +71,8 @@ class EdgeAudioEngine {
             _currentDecibelLevel = double.parse(db.toStringAsFixed(1));
             _decibelStreamController.add(_currentDecibelLevel);
 
-            // Ensure voice-to-text listener is active for hotwords
-            if (_currentDecibelLevel >= 60.0) {
-              _startVoiceToTextListening();
-            }
+            // Always keep STT listening for real-time hotword capture
+            _startVoiceToTextListening();
           }
         },
         onError: (Object error) {
@@ -144,8 +142,8 @@ class EdgeAudioEngine {
     String words = result.recognizedWords.toLowerCase().trim();
     debugPrint('[STT Recognized]: $words (Current dB: $_currentDecibelLevel)');
 
-    // STRICT RULE: BOTH sound level >= 60 dB AND hotword match required!
-    if (_currentDecibelLevel >= 60.0) {
+    // STRICT RULE: BOTH sound level >= 85 dB AND hotword match required!
+    if (_currentDecibelLevel >= 85.0) {
       for (final word in _distressHotwords) {
         if (words.contains(word)) {
           final now = DateTime.now();
