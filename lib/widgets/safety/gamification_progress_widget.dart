@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/models/safety_audit_models.dart';
 import 'package:safe/services/safety_audit_service.dart';
 import 'package:safe/theme/app_theme.dart';
+import 'package:safe/widgets/safety/safety_leaderboard_screen.dart';
 
 class GamificationProgressWidget extends StatefulWidget {
   final String userId;
@@ -125,27 +126,65 @@ class _GamificationProgressWidgetState extends State<GamificationProgressWidget>
                 ],
               ),
 
-              // Streak Chip
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF59E0B), width: 1),
-                ),
-                child: Row(
-                  children: [
-                    const Text('🔥 ', style: TextStyle(fontSize: 14)),
-                    Text(
-                      '${p.streakCount}d Streak',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFF59E0B),
+              // Streak Chip & Leaderboard Button
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      if (widget.onLeaderboardTapped != null) {
+                        widget.onLeaderboardTapped!();
+                      } else {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (ctx) => const SafetyLeaderboardScreen()),
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF06B6D4).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF06B6D4), width: 1.2),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('🏆 ', style: TextStyle(fontSize: 13)),
+                          Text(
+                            'Leaderboard',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF06B6D4),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFF59E0B), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🔥 ', style: TextStyle(fontSize: 13)),
+                        Text(
+                          '${p.streakCount}d Streak',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

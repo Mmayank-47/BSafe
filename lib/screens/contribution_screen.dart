@@ -6,6 +6,7 @@ import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/services/safety_audit_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/safety/gamification_progress_widget.dart';
+import 'package:safe/widgets/safety/safety_leaderboard_screen.dart';
 
 class ContributionScreen extends StatefulWidget {
   const ContributionScreen({super.key});
@@ -167,7 +168,15 @@ class _ContributionScreenState extends State<ContributionScreen> {
               const SizedBox(height: 20),
 
               // Gamification Reward Card
-              const GamificationProgressWidget(),
+              GamificationProgressWidget(
+                onLeaderboardTapped: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => const SafetyLeaderboardScreen(),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 20),
 
               // Audit Submission Form Card

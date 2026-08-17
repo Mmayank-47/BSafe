@@ -13,8 +13,6 @@ import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:safe/widgets/safety/gamification_progress_widget.dart';
-import 'package:safe/widgets/safety/safety_leaderboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -420,22 +418,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-
-            // Gamified Safety Contribution Profile Card
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: GamificationProgressWidget(
-                  onLeaderboardTapped: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (ctx) => const SafetyLeaderboardScreen(),
-                      ),
-                    );
-                  },
                 ),
               ),
             ),
