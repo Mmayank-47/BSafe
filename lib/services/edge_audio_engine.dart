@@ -11,7 +11,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 /// microphone simultaneously. This engine alternates between them:
 ///
 /// Phase 1 (MONITOR):  noise_meter reads dB levels continuously.
-///                     When dB >= 85 threshold, switch to Phase 2.
+///                     When dB >= 70 threshold, switch to Phase 2.
 /// Phase 2 (CAPTURE):  Pause noise_meter, start speech_to_text for 8 seconds
 ///                     to capture hotwords ("help", "bachao", "save me").
 ///                     If hotword found → fire distress alert.
@@ -98,8 +98,8 @@ class EdgeAudioEngine {
           _currentDecibelLevel = double.parse(db.toStringAsFixed(1));
           _decibelStreamController.add(_currentDecibelLevel);
 
-          // When dB crosses 85 threshold → switch to capture mode
-          if (_currentDecibelLevel >= 85.0 && !_inCaptureMode) {
+          // When dB crosses 70 threshold → switch to capture mode
+          if (_currentDecibelLevel >= 70.0 && !_inCaptureMode) {
             debugPrint('[Edge AI Audio Engine] 🔊 dB threshold crossed: ${_currentDecibelLevel}dB → switching to speech capture');
             _switchToCaptureMode();
           }
