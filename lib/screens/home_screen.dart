@@ -32,6 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<String>? _hotwordSubscription;
   StreamSubscription<String>? _auditSubscription;
 
+  int _escalationAttempt = 1;
+  Timer? _escalationTimer;
+  int _secondsRemaining = 5;
+  bool _isEscalationActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,20 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _hotwordSubscription = _audioEngine.hotwordStream.listen((hotword) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '🚨 VOICE TRIGGER ACTIVATED: $hotword',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            backgroundColor: AppTheme.accentRose,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (ctx) => const AlertMessageScreen()),
-        );
+        _triggerVoiceEmergencyEscalation(hotword);
       }
     });
   }
@@ -78,11 +70,264 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _escalationTimer?.cancel();
     _auditSubscription?.cancel();
     _decibelSubscription?.cancel();
     _hotwordSubscription?.cancel();
     _pinController.dispose();
     super.dispose();
+  }
+
+  void _triggerVoiceEmergencyEscalation(String triggerReason) {
+    if (_isEscalationActive) return;
+    _isEscalationActive = true;
+    _escalationAttempt = 1;
+    _secondsRemaining = 5;
+
+    _showRedAlertEscalationDialog(triggerReason);
+  }
+
+  void _showRedAlertEscalationDialog(String triggerReason) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            _escalationTimer?.cancel();
+            _escalationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+              if (_secondsRemaining > 1) {
+                if (mounted) setDialogState(() => _secondsRemaining--);
+              } else {
+                timer.cancel();
+                if (_escalationAttempt < 3) {
+                  if (mounted) {
+                    setDialogState(() {
+                      _escalationAttempt++;
+                      _secondsRemaining = 5;
+                    });
+                  }
+                } else {
+                  Navigator.of(dialogCtx, rootNavigator: true).pop();
+                  _isEscalationActive = false;
+                  _executeEmergencyCallAndSms('Automatic Escalation: No response after 3 safety checks.');
+                }
+              }
+            });
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF991B1B),
+                      Color(0xFF7F1D1D),
+                      Color(0xFF450A0A),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: Colors.redAccent, width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.redAccent,
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white54),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.yellowAccent, size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            '🚨 RED ALERT SIGN: VOICE DISTRESS',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 90,
+                          height: 90,
+                          child: CircularProgressIndicator(
+                            value: _secondsRemaining / 5.0,
+                            strokeWidth: 6,
+                            backgroundColor: Colors.white24,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellowAccent),
+                          ),
+                        ),
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$_secondsRemaining',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'ARE YOU SAFE?',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    Text(
+                      'Emergency Voice Trigger: "$triggerReason"',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        color: Colors.yellowAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    Text(
+                      'Attempt $_escalationAttempt of 3 (Auto Helpline Call in ${_secondsRemaining + (3 - _escalationAttempt) * 5}s)',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _escalationTimer?.cancel();
+                              Navigator.of(dialogCtx, rootNavigator: true).pop();
+                              _isEscalationActive = false;
+                              Fluttertoast.showToast(
+                                msg: "🟢 Situation Normal. Alert Cancelled.",
+                                backgroundColor: const Color(0xFF10B981),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
+                            label: Text(
+                              'YES, Safe',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _escalationTimer?.cancel();
+                              Navigator.of(dialogCtx, rootNavigator: true).pop();
+                              _isEscalationActive = false;
+                              _executeEmergencyCallAndSms('User pressed NO (Need Help)!');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            icon: const Icon(Icons.sos_rounded, color: Colors.white),
+                            label: Text(
+                              'NO, Help!',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _executeEmergencyCallAndSms(String reason) async {
+    const phone = '9109750185';
+    final message = Uri.encodeComponent(
+      '🚨 EMERGENCY BSAFE ALERT! $reason Live GPS Location: https://maps.google.com/?q=21.1458,79.0882 Helpline: 9109750185',
+    );
+
+    final smsUri = Uri.parse('sms:$phone?body=$message');
+    try {
+      await launchUrl(smsUri);
+    } catch (_) {}
+
+    final telUri = Uri.parse('tel:$phone');
+    try {
+      await launchUrl(telUri);
+    } catch (_) {}
+
+    Fluttertoast.showToast(
+      msg: "🚨 Emergency Call & SMS Dispatched to 9109750185!",
+      toastLength: Toast.LENGTH_LONG,
+      backgroundColor: Colors.redAccent,
+    );
   }
 
 
@@ -691,6 +936,133 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+            // Voice Assistant Hotword & Acoustic Guard Card
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              sliver: SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1B4B),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: AppTheme.accentNeonPurple.withValues(alpha: 0.5), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.accentNeonPurple.withValues(alpha: 0.2),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.mic_rounded, color: Color(0xFF10B981), size: 22),
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '🎙️ Voice Assistant Active',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Continuous Hotword & Acoustic Guard ON',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryPurple.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppTheme.accentNeonPurple),
+                            ),
+                            child: Text(
+                              '${_currentDb.toStringAsFixed(1)} dB',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      Text(
+                        'Distress Hotwords Watched:',
+                        style: GoogleFonts.outfit(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: ['"help"', '"bachao"', '"save me"', '"emergency"', '"police"'].map((w) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Text(
+                              w,
+                              style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            _triggerVoiceEmergencyEscalation('HOTWORD: "BACHAO" (Test Trigger)');
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.redAccent,
+                            side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          icon: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                          label: Text(
+                            '⚡ Test Voice Hotword Emergency Trigger',
+                            style: GoogleFonts.outfit(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -71,8 +71,8 @@ class EdgeAudioEngine {
             _currentDecibelLevel = double.parse(db.toStringAsFixed(1));
             _decibelStreamController.add(_currentDecibelLevel);
 
-            // If sound intensity reaches 90dB limit, ensure voice-to-text listener is active
-            if (_currentDecibelLevel >= 90.0) {
+            // Ensure voice-to-text listener is active for hotwords
+            if (_currentDecibelLevel >= 60.0) {
               _startVoiceToTextListening();
             }
           }
