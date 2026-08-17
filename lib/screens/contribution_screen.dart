@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:safe/models/safety_audit_models.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/services/safety_audit_service.dart';
@@ -29,6 +30,9 @@ class _ContributionScreenState extends State<ContributionScreen> {
   String _selectedLocalityName = 'Sitabuldi';
   double _selectedLat = 21.1458;
   double _selectedLng = 79.0882;
+
+  String? _attachedPhotoPath;
+  String? _attachedPhotoName;
 
   final CategoryTag _categoryTag = CategoryTag.street;
   final TimeOfDayPeriod _timeOfDay = TimeOfDayPeriod.night;
@@ -83,7 +87,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.85,
+              height: MediaQuery.of(context).size.height * 0.88,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: AppTheme.purpleHeroGradient,
@@ -207,7 +211,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                     _buildModalRatingSlider('🛡️ Safety Perception / Feeling', _feeling, (val) => setModalState(() => _feeling = val)),
                     const SizedBox(height: 16),
 
-                    // Crowd Density Selector
+                    // Crowd Density Selector (High Contrast Text)
                     Text('👥 Crowd Footfall Density:', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     Wrap(
@@ -215,17 +219,28 @@ class _ContributionScreenState extends State<ContributionScreen> {
                       children: CrowdDensity.values.map((c) {
                         final isSelected = _crowd == c;
                         return ChoiceChip(
-                          label: Text(c.name.toUpperCase(), style: GoogleFonts.outfit(fontSize: 12, color: isSelected ? AppTheme.textDark : Colors.white)),
+                          label: Text(
+                            c.name.toUpperCase(),
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? AppTheme.primaryPurple : Colors.white,
+                            ),
+                          ),
                           selected: isSelected,
                           selectedColor: Colors.white,
-                          backgroundColor: Colors.white.withValues(alpha: 0.15),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          side: BorderSide(
+                            color: isSelected ? Colors.white : Colors.white38,
+                            width: 1.5,
+                          ),
                           onSelected: (_) => setModalState(() => _crowd = c),
                         );
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
 
-                    // Observation Notes
+                    // Observation Notes & Camera Photo Attachment
                     Text('📝 Incident Notes / Observations:', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 6),
                     TextField(
@@ -238,6 +253,68 @@ class _ContributionScreenState extends State<ContributionScreen> {
                         fillColor: Colors.white.withValues(alpha: 0.15),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Camera / Photo Attachment Row
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final result = await FilePicker.platform.pickFiles(type: FileType.image);
+                            if (result != null && result.files.isNotEmpty) {
+                              setModalState(() {
+                                _attachedPhotoPath = result.files.first.path;
+                                _attachedPhotoName = result.files.first.name;
+                              });
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white70, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          ),
+                          icon: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
+                          label: Text('📷 Add Photo / Camera', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                        if (_attachedPhotoName != null) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFF10B981), width: 1.5),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.image_rounded, color: Colors.white, size: 16),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      _attachedPhotoName!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setModalState(() {
+                                        _attachedPhotoPath = null;
+                                        _attachedPhotoName = null;
+                                      });
+                                    },
+                                    child: const Icon(Icons.close_rounded, color: Colors.white70, size: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 24),
 
@@ -315,6 +392,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'public_transport': _publicTransport,
       'gender_diversity': _genderDiversity,
       'feeling': _feeling,
+      'photo_url': _attachedPhotoPath,
       'comment': _commentController.text.trim().isEmpty
           ? "Verified safety parameters for $_selectedLocalityName."
           : _commentController.text.trim(),
@@ -322,6 +400,13 @@ class _ContributionScreenState extends State<ContributionScreen> {
 
     try {
       final audit = await _auditService.submitAudit(payload);
+
+      // Dynamically recalculate Nagpur locality score
+      _nagpurService.updateLocalityWithAudit(
+        lat: _selectedLat,
+        lon: _selectedLng,
+        auditData: payload,
+      );
 
       if (mounted) {
         setState(() {
@@ -336,6 +421,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
           if (audit != null) {
             _recentAudits.insert(0, audit);
           }
+          _attachedPhotoPath = null;
+          _attachedPhotoName = null;
         });
         Fluttertoast.showToast(
           msg: "🎉 Audit Submitted! +50 Pts Added to Profile!",
