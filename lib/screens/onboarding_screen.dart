@@ -211,7 +211,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               const SizedBox(width: 10),
               Text(
-                'RakshaSetu',
+                'bSafe',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -512,7 +512,7 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 2),
                     child: Text(
-                      '⚠ Must be 13 years or older to use RakshaSetu.',
+                      '⚠ Must be 13 years or older to use bSafe.',
                       style: GoogleFonts.outfit(
                           fontSize: 11, color: const Color(0xFFEF4444)),
                     ),

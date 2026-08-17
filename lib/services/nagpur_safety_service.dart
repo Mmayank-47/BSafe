@@ -568,10 +568,7 @@ class NagpurSafetyService {
     int durationMinutes;
 
     try {
-      final googleApiKey = const String.fromEnvironment(
-        'GOOGLE_MAPS_API_KEY',
-        defaultValue: 'AIzaSyC1FsoKFoavJ1UcvJr_KYDMOJPdPu5ISTg',
-      );
+      final googleApiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
       if (googleApiKey.isNotEmpty) {
         final modeParam = travelMode == TravelMode.walk ? 'walking' : 'driving';
         final googleUrl = Uri.parse(
@@ -585,12 +582,7 @@ class NagpurSafetyService {
             if (elements != null && elements.isNotEmpty && elements[0]['status'] == 'OK') {
               final distMeters = (elements[0]['distance']['value'] as num).toDouble();
               distanceKm = double.parse((distMeters / 1000.0).toStringAsFixed(1));
-
-              final durObj = elements[0]['duration'];
-              if (durObj != null && durObj['value'] != null) {
-                final durSecs = (durObj['value'] as num).toDouble();
-                durationMinutes = (durSecs / 60.0).round().clamp(1, 400);
-              } else if (travelMode == TravelMode.car) {
+              if (travelMode == TravelMode.car) {
                 durationMinutes = ((distanceKm / 40.0) * 60).round().clamp(1, 300);
               } else {
                 durationMinutes = ((distanceKm / 4.0) * 60).round();

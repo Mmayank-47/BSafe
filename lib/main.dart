@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RakshaSetu Safety App',
+      title: 'bSafe Safety App',
       theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
       home: const SplashScreen(),

@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'RakshaSetu',
+              'bSafe',
               style: GoogleFonts.outfit(
                 fontSize: 42,
                 fontWeight: FontWeight.w900,

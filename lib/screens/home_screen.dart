@@ -12,6 +12,7 @@ import 'package:safe/services/mesh_network_service.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -326,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _executeEmergencyCallAndSms(String reason) async {
     const phone = '9109750185';
     final message = Uri.encodeComponent(
-      '🚨 EMERGENCY RAKSHASETU ALERT! $reason Live GPS Location: https://maps.google.com/?q=21.1458,79.0882 Helpline: 9109750185',
+      '🚨 EMERGENCY BSAFE ALERT! $reason Live GPS Location: https://maps.google.com/?q=21.1458,79.0882 Helpline: 9109750185',
     );
 
     final smsUri = Uri.parse('sms:$phone?body=$message');
@@ -425,9 +426,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 
-  Future<void> _sendEmergencySMSOrWhatsApp() async {
+  Future<void> _sendEmergencySMSOrWhatsApp({double? lat, double? lon}) async {
     const phoneNumber = "9109750185";
-    const message = "🚨 EMERGENCY SOS ALERT from RakshaSetu! I need immediate help at GPS location (21.1458, 79.0882), Sitabuldi, Nagpur. Please send assistance!";
+    final targetLat = lat ?? 21.1458;
+    final targetLon = lon ?? 79.0882;
+    final mapLink = "https://www.google.com/maps/search/?api=1&query=$targetLat,$targetLon";
+    final message = "🚨 EMERGENCY SOS ALERT from bSafe! I need immediate help at exact GPS location ($targetLat, $targetLon)\nLive Map Pin: $mapLink";
 
     final whatsappUrl = Uri.parse("https://wa.me/91$phoneNumber?text=${Uri.encodeComponent(message)}");
     try {
@@ -451,11 +455,32 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Center(
           child: PulseSosButton(
-            onTap: () {
-              _sendEmergencySMSOrWhatsApp();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (ctx) => const AlertMessageScreen()),
-              );
+            onTap: () async {
+              double currentLat = 21.1458;
+              double currentLon = 79.0882;
+              try {
+                final pos = await Geolocator.getCurrentPosition(
+                  locationSettings: const LocationSettings(
+                    accuracy: LocationAccuracy.high,
+                    timeLimit: Duration(seconds: 2),
+                  ),
+                );
+                currentLat = pos.latitude;
+                currentLon = pos.longitude;
+              } catch (_) {}
+
+              _sendEmergencySMSOrWhatsApp(lat: currentLat, lon: currentLon);
+              if (context.mounted) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (ctx) => AlertMessageScreen(
+                      initialLat: currentLat,
+                      initialLon: currentLon,
+                      initialRecentCallVector: '9109750185',
+                    ),
+                  ),
+                );
+              }
             },
           ),
         ),

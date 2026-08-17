@@ -7,6 +7,7 @@ import 'package:safe/screens/location_screen.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/contacts/contacts_screen.dart';
 
+import 'package:geolocator/geolocator.dart';
 import 'package:safe/screens/sos_screen.dart';
 import 'package:safe/widgets/smart_wake_gesture_detector.dart';
 
@@ -21,14 +22,31 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
-  void _onSmartWakeLDetected() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx) => const AlertMessageScreen(
-          initialRecentCallVector: '9109750185',
+  void _onSmartWakeLDetected() async {
+    double sosLat = 21.1458;
+    double sosLon = 79.0882;
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 2),
         ),
-      ),
-    );
+      );
+      sosLat = pos.latitude;
+      sosLon = pos.longitude;
+    } catch (_) {}
+
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (ctx) => AlertMessageScreen(
+            initialLat: sosLat,
+            initialLon: sosLon,
+            initialRecentCallVector: '9109750185',
+          ),
+        ),
+      );
+    }
   }
 
   // Initial App Entry: Route Safety & Source-Destination Finder (Photo 1 & 2 UI/UX)

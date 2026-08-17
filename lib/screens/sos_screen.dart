@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/components/custom_button.dart';
@@ -28,7 +29,8 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
   final TextEditingController textController = TextEditingController(text: "EMERGENCY! I need immediate help!");
   final LocationService _locationService = LocationService();
 
-  String locationMessage = "Fetching location...";
+  String locationMessage = "Fetching exact SOS GPS coordinates...";
+  String _exactAddress = "Locating...";
   String mapLink = "";
   double? _lat;
   double? _lon;
@@ -48,55 +50,78 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
   }
 
   Future<void> _fetchCurrentLocationAndContext() async {
+    double latitude = widget.initialLat ?? 21.1458;
+    double longitude = widget.initialLon ?? 79.0882;
+    final recentCaller = widget.initialRecentCallVector ?? '9109750185';
+
+    // If initial coordinates were provided, use them; otherwise query fresh high-accuracy GPS
     if (widget.initialLat != null && widget.initialLon != null) {
-      final latitude = widget.initialLat!;
-      final longitude = widget.initialLon!;
-      final recentCaller = widget.initialRecentCallVector ?? '9109750185';
-      String address = "Nagpur Live Route Corridor";
+      latitude = widget.initialLat!;
+      longitude = widget.initialLon!;
+    } else {
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 3),
+          ),
+        );
+        latitude = position.latitude;
+        longitude = position.longitude;
+      } catch (_) {
+        try {
+          Position position = await _locationService.getCurrentLocation();
+          latitude = position.latitude;
+          longitude = position.longitude;
+        } catch (_) {}
+      }
+    }
+
+    String address = "Nagpur, Maharashtra, India";
+    try {
+      final placemarks = await placemarkFromCoordinates(latitude, longitude);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        address = [p.name, p.subLocality, p.locality, p.administrativeArea]
+            .where((s) => s != null && s.isNotEmpty)
+            .join(', ');
+      }
+    } catch (_) {
       try {
         address = await _locationService.getAddressFromCoordinates(latitude, longitude);
       } catch (_) {}
+    }
 
+    if (mounted) {
       setState(() {
         _lat = latitude;
         _lon = longitude;
+        _exactAddress = address;
         _recentCallVector = recentCaller;
-        locationMessage =
-            "Lat: ${latitude.toStringAsFixed(4)}, Lon: ${longitude.toStringAsFixed(4)}\n$address";
-        mapLink =
-            'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
-      });
-      return;
-    }
-
-    try {
-      Position position = await _locationService.getCurrentLocation();
-      String address = await _locationService.getAddressFromCoordinates(
-          position.latitude, position.longitude);
-
-      setState(() {
-        _lat = position.latitude;
-        _lon = position.longitude;
-        _recentCallVector = widget.initialRecentCallVector ?? '9109750185';
-        locationMessage =
-            "Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}\n$address";
-        mapLink =
-            'https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
-      });
-    } catch (e) {
-      setState(() {
-        locationMessage = e.toString();
-        _lat = 21.1458;
-        _lon = 79.0882;
-        _recentCallVector = '9109750185';
-        mapLink = 'https://www.google.com/maps/search/?api=1&query=21.1458,79.0882';
+        locationMessage = "Lat: ${latitude.toStringAsFixed(5)}, Lon: ${longitude.toStringAsFixed(5)}";
+        mapLink = 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
       });
     }
   }
 
+  Future<void> _openExactLocationInMap() async {
+    final lat = _lat ?? 21.1458;
+    final lon = _lon ?? 79.0882;
+    final url = Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lon");
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(url);
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Could not open map: $e");
+    }
+  }
+
   Future<void> _dispatchAgenticSOS() async {
-    final lat = _lat ?? 28.6139;
-    final lon = _lon ?? 77.2090;
+    final lat = _lat ?? 21.1458;
+    final lon = _lon ?? 79.0882;
 
     final result = await AgentApiService.triggerSOS(
       userId: 'usr_current_app',
@@ -110,7 +135,7 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
       _triageResult = result;
     });
 
-    final message = "${textController.text}\nRecent Caller Vector: $_recentCallVector\nLocation: $mapLink";
+    final message = "${textController.text}\nRecent Caller Vector: $_recentCallVector\nExact SOS GPS: $mapLink";
     _showAlertDialog(message, result);
   }
 
@@ -236,28 +261,129 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: AppTheme.glassCardDecoration(borderRadius: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Recent Call Log Vector:',
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                      ),
-                      Text(
-                        _recentCallVector ?? 'Querying READ_CALL_LOG...',
-                        style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        locationMessage,
-                        style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
-                      ),
-                    ],
+
+                // Interactive Clickable Recent Call Log Vector Card with Exact SOS Pinpoint Location
+                InkWell(
+                  onTap: _openExactLocationInMap,
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.primaryPurple.withValues(alpha: 0.4), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryPurple.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryPurple.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.phone_in_talk_rounded, color: AppTheme.primaryPurple, size: 18),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Recent Call Log Vector:',
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: AppTheme.textDark, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                'ACTIVE',
+                                style: GoogleFonts.outfit(
+                                  color: const Color(0xFF10B981),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _recentCallVector ?? '9109750185 (Emergency Response Vector)',
+                          style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        const Divider(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.location_pin, color: Color(0xFFEF4444), size: 20),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Exact SOS Trigger Location:',
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    locationMessage,
+                                    style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryPurple),
+                                  ),
+                                  Text(
+                                    _exactAddress,
+                                    style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.map_rounded, color: Colors.white, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                '📍 Tap to Open Exact SOS Pin in Google Maps',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
+
                 const SizedBox(height: 16),
                 if (_triageResult != null) ...[
                   Container(
