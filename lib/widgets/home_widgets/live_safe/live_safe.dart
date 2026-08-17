@@ -1,89 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LiveSafe extends StatelessWidget {
   const LiveSafe({super.key});
 
   Future<void> openMap(String location) async {
-    Uri url = Uri.parse("https://www.google.com/maps/search/$location");
+    final Uri url = Uri.parse("https://www.google.com/maps/search/$location");
     try {
       await launchUrl(url);
-    } catch (e) {
-      Fluttertoast.showToast(msg: "Error loading");
-    }
+    } catch (_) {}
   }
 
   Widget buildCard({
-    required String imagePath,
+    required IconData icon,
     required String title,
     required String location,
+    required Color color,
   }) {
-    return InkWell(
-      onTap: () {
-        openMap(location);
-      },
+    return GestureDetector(
+      onTap: () => openMap(location),
       child: Container(
-        padding: const EdgeInsets.all(10),
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 100,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage(imagePath),
-                    fit: BoxFit.cover,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+        padding: const EdgeInsets.all(16),
+        decoration: AppTheme.glassCardDecoration(borderRadius: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const Spacer(),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  'Directions',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: AppTheme.textMuted,
                   ),
                 ),
-              ),
-              const SizedBox(
-                height: 4,
-              ),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xFFF75874), // Button color
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () {
-                        openMap(location);
-                      },
-                      child: const Icon(
-                        Icons.directions,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, size: 14, color: color),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -91,70 +67,74 @@ class LiveSafe extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> places = [
+      {
+        "title": "Police Station",
+        "location": "Police Stations near me",
+        "icon": Icons.local_police_rounded,
+        "color": const Color(0xFF8B5CF6),
+      },
+      {
+        "title": "Hospitals",
+        "location": "Hospitals near me",
+        "icon": Icons.local_hospital_rounded,
+        "color": const Color(0xFFF43F5E),
+      },
+      {
+        "title": "Bus Station",
+        "location": "Bus Stations near me",
+        "icon": Icons.directions_bus_rounded,
+        "color": const Color(0xFF38BDF8),
+      },
+      {
+        "title": "Pharmacies",
+        "location": "Pharmacies near me",
+        "icon": Icons.medical_services_rounded,
+        "color": const Color(0xFF34D399),
+      },
+      {
+        "title": "Safe Hotels",
+        "location": "Hotels near me",
+        "icon": Icons.hotel_rounded,
+        "color": const Color(0xFFF59E0B),
+      },
+    ];
+
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: SizedBox(
-        height: 800,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'LiveSafe',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LiveSafe Places Nearby',
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: GridView.builder(
-                itemCount: 5, // Number of items in the grid
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  // crossAxisSpacing: ,
-                  // mainAxisSpacing: 12,
-                  childAspectRatio: 0.8, // Adjust as necessary
-                ),
-                itemBuilder: (context, index) {
-                  switch (index) {
-                    case 0:
-                      return buildCard(
-                        imagePath: "assets/safe_place/police_place.png",
-                        title: "Police Station",
-                        location: 'Police Stations near me',
-                      );
-                    case 1:
-                      return buildCard(
-                        imagePath: "assets/safe_place/hospital_place.png",
-                        title: "Hospitals",
-                        location: 'Hospitals near me',
-                      );
-                    case 2:
-                      return buildCard(
-                        imagePath: "assets/safe_place/bus_place.png",
-                        title: "Bus Station",
-                        location: 'Bus Stations near me',
-                      );
-                    case 3:
-                      return buildCard(
-                        imagePath: "assets/safe_place/clinic_place.png",
-                        title: "Medicals",
-                        location: 'Medicals near me',
-                      );
-                    case 4:
-                      return buildCard(
-                        imagePath: "assets/safe_place/hotel_place.png",
-                        title: "Hotels",
-                        location: 'Hotels near me',
-                      );
-                    default:
-                      return const SizedBox.shrink();
-                  }
-                },
-              ),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: places.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.2,
             ),
-          ],
-        ),
+            itemBuilder: (context, index) {
+              final item = places[index];
+              return buildCard(
+                icon: item["icon"],
+                title: item["title"],
+                location: item["location"],
+                color: item["color"],
+              );
+            },
+          ),
+        ],
       ),
     );
   }

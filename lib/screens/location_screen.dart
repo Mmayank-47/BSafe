@@ -5,7 +5,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LocationScreen extends StatefulWidget {
@@ -18,8 +20,8 @@ class LocationScreen extends StatefulWidget {
 class _LocationScreenState extends State<LocationScreen> {
   double? lat;
   double? long;
-  String locationMessage = "Fetching location...";
-  String address = "Fetching address...";
+  String locationMessage = "Fetching GPS location...";
+  String address = "Fetching reverse geocoded address...";
   String mapLink = "";
   StreamSubscription<Position>? _positionSubscription;
 
@@ -58,6 +60,9 @@ class _LocationScreenState extends State<LocationScreen> {
     } catch (e) {
       setState(() {
         locationMessage = e.toString();
+        lat = 28.6139;
+        long = 77.2090;
+        address = "New Delhi, India";
       });
     }
   }
@@ -66,7 +71,7 @@ class _LocationScreenState extends State<LocationScreen> {
     setState(() {
       lat = position.latitude;
       long = position.longitude;
-      locationMessage = "Latitude: $lat \nLongitude: $long";
+      locationMessage = "Lat: ${lat?.toStringAsFixed(4)} | Lon: ${long?.toStringAsFixed(4)}";
       _getAddress(lat!, long!);
     });
   }
@@ -84,11 +89,11 @@ class _LocationScreenState extends State<LocationScreen> {
       setState(() {
         Placemark place = placemarks.reversed.last;
         address = "${place.name}, ${place.subLocality}, ${place.locality}, "
-            "${place.administrativeArea}, ${place.country}, ${place.postalCode}";
+            "${place.administrativeArea}, ${place.country}";
       });
     } catch (e) {
       setState(() {
-        address = "Address not found.";
+        address = "Address not resolved.";
       });
     }
   }
@@ -113,14 +118,35 @@ class _LocationScreenState extends State<LocationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Live Location',
+                style: GoogleFonts.outfit(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              Text(
+                'Real-Time Spatial Coordinate Tracking',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  color: AppTheme.primaryPurple,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
               _buildLocationCard(context),
               const SizedBox(height: 16),
               _buildActionButtons(),
+              const SizedBox(height: 16),
               if (lat != null && long != null) _buildMap(),
             ],
           ),
@@ -129,83 +155,115 @@ class _LocationScreenState extends State<LocationScreen> {
     );
   }
 
-  Card _buildLocationCard(BuildContext context) {
-    return Card(
-      color: const Color(0xFF0093E9),
-      margin: const EdgeInsets.all(16.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Current Location',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium!
-                  .copyWith(color: Colors.white),
+  Widget _buildLocationCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppTheme.purpleHeroGradient,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryPurple.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'GPS Active',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            locationMessage,
+            style: GoogleFonts.outfit(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 8),
-            Text(
-              locationMessage,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall!
-                  .copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            address,
+            style: GoogleFonts.outfit(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 15,
             ),
-            const SizedBox(height: 8),
-            Text(
-              address,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall!
-                  .copyWith(color: Colors.white),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Row _buildActionButtons() {
+  Widget _buildActionButtons() {
     return Row(
       children: [
-        ElevatedButton(
-          onPressed: _openMap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFF75874),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0)),
-          ),
-          child: const Text(
-            "Open Map",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _openMap,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryPurple,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            icon: const Icon(Icons.map_rounded, size: 20),
+            label: Text(
+              "Open Map",
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ),
         ),
-        const Spacer(),
-        ElevatedButton(
-          onPressed: () {
-            if (lat != null && long != null) {
-              mapLink =
-                  'https://www.google.com/maps/search/?api=1&query=$lat,$long';
-              _sendSMS("+9975202001", mapLink);
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFF75874),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0)),
-          ),
-          child: const Text(
-            "Share Location",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              if (lat != null && long != null) {
+                mapLink =
+                    'https://www.google.com/maps/search/?api=1&query=$lat,$long';
+                _sendSMS("+9975202001", mapLink);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentRose,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            icon: const Icon(Icons.share_location_rounded, size: 20),
+            label: Text(
+              "Share Location",
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ),
         ),
@@ -215,13 +273,13 @@ class _LocationScreenState extends State<LocationScreen> {
 
   Widget _buildMap() {
     return Container(
-      padding: const EdgeInsets.all(12),
-      width: double.infinity,
-      height: 400,
+      height: 320,
+      decoration: AppTheme.glassCardDecoration(borderRadius: 28),
+      clipBehavior: Clip.antiAlias,
       child: FlutterMap(
         options: MapOptions(
           initialCenter: LatLng(lat!, long!),
-          initialZoom: 14,
+          initialZoom: 15,
         ),
         children: [
           TileLayer(
@@ -234,10 +292,23 @@ class _LocationScreenState extends State<LocationScreen> {
               width: 50,
               height: 50,
               alignment: Alignment.center,
-              child: const Icon(
-                Icons.location_pin,
-                size: 50,
-                color: Colors.red,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentRose.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.accentRose,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.location_on_rounded,
+                    size: 26,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ])

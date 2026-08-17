@@ -13,6 +13,23 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    def setCompileSdk = { proj ->
+        if (proj.hasProperty('android')) {
+            proj.android {
+                compileSdk = 36
+            }
+        }
+    }
+    if (project.state.executed) {
+        setCompileSdk(project)
+    } else {
+        project.afterEvaluate {
+            setCompileSdk(project)
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
