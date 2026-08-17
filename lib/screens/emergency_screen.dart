@@ -35,12 +35,15 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Select Unsafe Zone Warning Sound',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textDark,
+                      Expanded(
+                        child: Text(
+                          'Select Unsafe Zone Warning Sound',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       IconButton(
@@ -207,30 +210,35 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.add_alert_rounded,
+                                  color: Color(0xFFEF4444),
+                                  size: 20,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.add_alert_rounded,
-                                color: Color(0xFFEF4444),
-                                size: 20,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Unsafe Zone Warning Alert',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textDark,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Unsafe Zone Warning Alert',
-                              style: GoogleFonts.outfit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textDark,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         Switch(
                           value: _soundService.isProximityAlertEnabled,

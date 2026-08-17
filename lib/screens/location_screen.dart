@@ -621,26 +621,30 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                   Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Route Safety Finder',
-                        style: GoogleFonts.outfit(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.textDark,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Route Safety Finder',
+                          style: GoogleFonts.outfit(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Text(
-                        'AI Dynamic Lighting & Crime Engine',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          color: AppTheme.primaryPurple,
-                          fontWeight: FontWeight.w600,
+                        Text(
+                          'AI Dynamic Lighting & Crime Engine',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            color: AppTheme.primaryPurple,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   IconButton(
                     onPressed: () {
@@ -823,12 +827,15 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '⚠️ Route Alert (10s Auto-Dismiss)',
-                      style: GoogleFonts.outfit(
-                        color: const Color(0xFFEF4444),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    Flexible(
+                      child: Text(
+                        '⚠️ Route Alert (10s Auto-Dismiss)',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFFEF4444),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Text(
@@ -1201,12 +1208,15 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                         color: _useSafestRoute ? Colors.white : AppTheme.primaryPurple,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Optimized Safest',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: _useSafestRoute ? Colors.white : AppTheme.textDark,
+                      Flexible(
+                        child: Text(
+                          'Optimized Safest',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: _useSafestRoute ? Colors.white : AppTheme.textDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -1251,12 +1261,15 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                         color: !_useSafestRoute ? Colors.white : const Color(0xFF3B82F6),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Fastest Direct',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: !_useSafestRoute ? Colors.white : AppTheme.textDark,
+                      Flexible(
+                        child: Text(
+                          'Fastest Direct',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: !_useSafestRoute ? Colors.white : AppTheme.textDark,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
