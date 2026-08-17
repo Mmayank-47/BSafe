@@ -93,12 +93,21 @@ class EdgeAudioEngine {
     try {
       _speechToText ??= SpeechToText();
       _speechEnabled = await _speechToText!.initialize(
-        onError: (val) => debugPrint('[STT Error] $val'),
+        onError: (val) {
+          debugPrint('[STT Error] $val');
+          if (_isListening) {
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (_isListening) _startVoiceToTextListening();
+            });
+          }
+        },
         onStatus: (status) {
           debugPrint('[STT Status] $status');
           if (status == 'done' || status == 'notListening') {
             if (_isListening) {
-              _startVoiceToTextListening();
+              Future.delayed(const Duration(milliseconds: 100), () {
+                if (_isListening) _startVoiceToTextListening();
+              });
             }
           }
         },
@@ -119,8 +128,8 @@ class EdgeAudioEngine {
       await _speechToText!.listen(
         onResult: _onSpeechResult,
         listenOptions: SpeechListenOptions(
-          listenFor: const Duration(seconds: 30),
-          pauseFor: const Duration(seconds: 3),
+          listenFor: const Duration(hours: 1),
+          pauseFor: const Duration(seconds: 10),
           partialResults: true,
           cancelOnError: false,
           listenMode: ListenMode.dictation,
