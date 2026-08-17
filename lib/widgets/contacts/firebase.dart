@@ -11,7 +11,7 @@ class FirebaseMethods {
     _loadLocalContacts();
   }
 
-  static const String _storageKey = 'bsafe_trusted_contacts_list';
+  static const String _storageKey = 'rakshasetu_trusted_contacts_list';
   final List<Map<String, dynamic>> _cachedContacts = [];
   final StreamController<List<Map<String, dynamic>>> _contactsStreamController =
       StreamController<List<Map<String, dynamic>>>.broadcast();
@@ -22,18 +22,53 @@ class FirebaseMethods {
   List<Map<String, dynamic>> get currentContacts =>
       List.unmodifiable(_cachedContacts);
 
+  String _cleanPhone(String? phone) {
+    if (phone == null) return '';
+    return phone.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  String _cleanName(String? name) {
+    if (name == null) return '';
+    return name.trim().toLowerCase();
+  }
+
+  List<Map<String, dynamic>> _deduplicateList(List<Map<String, dynamic>> list) {
+    final Map<String, Map<String, dynamic>> uniqueByPhone = {};
+    final Map<String, Map<String, dynamic>> uniqueByName = {};
+    final List<Map<String, dynamic>> result = [];
+
+    for (final contact in list) {
+      final phone = _cleanPhone(contact['Number']?.toString());
+      final name = _cleanName(contact['Name']?.toString());
+
+      if (phone.isNotEmpty && uniqueByPhone.containsKey(phone)) {
+        continue;
+      }
+      if (name.isNotEmpty && uniqueByName.containsKey(name)) {
+        continue;
+      }
+
+      if (phone.isNotEmpty) uniqueByPhone[phone] = contact;
+      if (name.isNotEmpty) uniqueByName[name] = contact;
+      result.add(contact);
+    }
+    return result;
+  }
+
   Future<void> _loadLocalContacts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
+      final raw = prefs.getString(_storageKey) ?? prefs.getString('bsafe_trusted_contacts_list');
       if (raw != null && raw.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(raw);
-        _cachedContacts.clear();
+        final List<Map<String, dynamic>> loaded = [];
         for (final item in decoded) {
           if (item is Map<String, dynamic>) {
-            _cachedContacts.add(Map<String, dynamic>.from(item));
+            loaded.add(Map<String, dynamic>.from(item));
           }
         }
+        _cachedContacts.clear();
+        _cachedContacts.addAll(_deduplicateList(loaded));
         _contactsStreamController.add(List.from(_cachedContacts));
       }
     } catch (e) {
@@ -51,25 +86,44 @@ class FirebaseMethods {
     }
   }
 
-  //* Create / Add Contact
+  //* Create / Add Contact (with Strict Deduplication)
   Future<void> addContact(
       Map<String, dynamic> contactDetails, String id) async {
-    // 1. Save to local storage first for instant offline availability
     final formatted = Map<String, dynamic>.from(contactDetails);
     formatted['id'] = id;
-    final existingIndex = _cachedContacts.indexWhere((c) => c['id'] == id);
+
+    final newPhone = _cleanPhone(formatted['Number']?.toString());
+    final newName = _cleanName(formatted['Name']?.toString());
+
+    // Check if a contact with the same phone or same name already exists
+    final existingIndex = _cachedContacts.indexWhere((c) {
+      final cPhone = _cleanPhone(c['Number']?.toString());
+      final cName = _cleanName(c['Name']?.toString());
+      return (newPhone.isNotEmpty && cPhone.isNotEmpty && newPhone == cPhone) ||
+          (newName.isNotEmpty && cName.isNotEmpty && newName == cName) ||
+          c['id'] == id;
+    });
+
     if (existingIndex >= 0) {
+      // Update existing record preserving its original id
+      formatted['id'] = _cachedContacts[existingIndex]['id'] ?? id;
       _cachedContacts[existingIndex] = formatted;
     } else {
       _cachedContacts.add(formatted);
     }
+
+    // Save deduplicated local contacts
+    final deduped = _deduplicateList(_cachedContacts);
+    _cachedContacts.clear();
+    _cachedContacts.addAll(deduped);
     await _saveLocalContacts();
 
-    // 2. Sync to Firestore in background
+    // Sync to Firestore
     try {
+      final targetId = formatted['id']?.toString() ?? id;
       await FirebaseFirestore.instance
           .collection('Contacts')
-          .doc(id)
+          .doc(targetId)
           .set(formatted);
     } catch (e) {
       debugPrint('[ContactsService] Firestore sync skipped: $e');
@@ -90,7 +144,7 @@ class FirebaseMethods {
     if (_cachedContacts.isEmpty) {
       await _loadLocalContacts();
     }
-    return List.from(_cachedContacts);
+    return _deduplicateList(_cachedContacts);
   }
 
   //* Delete Contact

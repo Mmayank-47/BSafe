@@ -211,7 +211,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               const SizedBox(width: 10),
               Text(
-                'bSafe',
+                'RakshaSetu',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,

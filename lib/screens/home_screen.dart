@@ -326,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _executeEmergencyCallAndSms(String reason) async {
     const phone = '9109750185';
     final message = Uri.encodeComponent(
-      '🚨 EMERGENCY BSAFE ALERT! $reason Live GPS Location: https://maps.google.com/?q=21.1458,79.0882 Helpline: 9109750185',
+      '🚨 EMERGENCY RAKSHASETU ALERT! $reason Live GPS Location: https://maps.google.com/?q=21.1458,79.0882 Helpline: 9109750185',
     );
 
     final smsUri = Uri.parse('sms:$phone?body=$message');
@@ -427,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _sendEmergencySMSOrWhatsApp() async {
     const phoneNumber = "9109750185";
-    const message = "🚨 EMERGENCY SOS ALERT from bSafe! I need immediate help at GPS location (21.1458, 79.0882), Sitabuldi, Nagpur. Please send assistance!";
+    const message = "🚨 EMERGENCY SOS ALERT from RakshaSetu! I need immediate help at GPS location (21.1458, 79.0882), Sitabuldi, Nagpur. Please send assistance!";
 
     final whatsappUrl = Uri.parse("https://wa.me/91$phoneNumber?text=${Uri.encodeComponent(message)}");
     try {

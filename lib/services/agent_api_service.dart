@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-/// Client service communicating with the bSafe Autonomous Agentic Backend API Gateway.
+/// Client service communicating with the RakshaSetu Autonomous Agentic Backend API Gateway.
 class AgentApiService {
   // Uses localhost for Web/Desktop and 10.0.2.2 for Android Emulator
   static String baseUrl = 'http://127.0.0.1:8000';

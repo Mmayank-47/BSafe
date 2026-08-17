@@ -28,12 +28,31 @@ class _ContactsScreenState extends State<ContactsScreen> {
     _loadContacts();
   }
 
+  List<Map<String, dynamic>> _deduplicate(List<Map<String, dynamic>> list) {
+    final Map<String, Map<String, dynamic>> byPhone = {};
+    final Map<String, Map<String, dynamic>> byName = {};
+    final List<Map<String, dynamic>> res = [];
+
+    for (final c in list) {
+      final phone = (c['Number'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+      final name = (c['Name'] ?? '').toString().trim().toLowerCase();
+
+      if (phone.isNotEmpty && byPhone.containsKey(phone)) continue;
+      if (name.isNotEmpty && byName.containsKey(name)) continue;
+
+      if (phone.isNotEmpty) byPhone[phone] = c;
+      if (name.isNotEmpty) byName[name] = c;
+      res.add(c);
+    }
+    return res;
+  }
+
   Future<void> _loadContacts() async {
     // 1. Load immediate local contacts (includes contacts from Onboarding Step 2)
     final local = await _firebaseMethods.getLocalContacts();
     if (mounted) {
       setState(() {
-        _contactsList = local;
+        _contactsList = _deduplicate(local);
         _isLoading = false;
       });
     }
@@ -42,7 +61,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     _localSub = _firebaseMethods.localContactsStream.listen((contacts) {
       if (mounted) {
         setState(() {
-          _contactsList = contacts;
+          _contactsList = _deduplicate(contacts);
         });
       }
     });
@@ -63,7 +82,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           }
           if (fromFs.isNotEmpty && mounted) {
             setState(() {
-              _contactsList = fromFs;
+              _contactsList = _deduplicate(fromFs);
             });
           }
         }

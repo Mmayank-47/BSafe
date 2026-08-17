@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Dart Service for Women's Safety Offline BLE Mesh SOS.
-/// Connects the BSafe Flutter App directly to the native Kotlin WomenSafetyMeshSosManager engine.
+/// Connects the RakshaSetu Flutter App directly to the native Kotlin WomenSafetyMeshSosManager engine.
 class WomenSafetyMeshSosService {
   static const MethodChannel _channel = MethodChannel('com.bsafe/womensafety_mesh_sos');
 
