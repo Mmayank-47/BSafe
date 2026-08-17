@@ -13,7 +13,6 @@ import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _requestMicAndStartEngine();
     _loadNagpurSafety();
     _auditSubscription = _safetyService.eventStream.listen((_) {
       _loadNagpurSafety();
@@ -54,17 +52,13 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
     _hotwordSubscription = _audioEngine.hotwordStream.listen((hotword) {
+      debugPrint('[HomeScreen] 🚨 HOTWORD RECEIVED FROM ENGINE: $hotword');
       if (mounted) {
         _triggerVoiceEmergencyEscalation(hotword);
       }
     });
-  }
-
-  void _requestMicAndStartEngine() async {
-    final status = await Permission.microphone.request();
-    if (status.isGranted) {
-      _audioEngine.startEngine();
-    }
+    // Start audio engine (it handles its own mic permission internally)
+    _audioEngine.startEngine();
   }
 
   Future<void> _loadNagpurSafety() async {
@@ -87,10 +81,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _triggerVoiceEmergencyEscalation(String triggerReason) {
+    debugPrint('[HomeScreen] _triggerVoiceEmergencyEscalation called. Active: $_isEscalationActive');
     if (_isEscalationActive) return;
     _isEscalationActive = true;
     _escalationAttempt = 1;
     _secondsRemaining = 5;
+
+    // Show a snackbar as immediate visual feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '🚨 VOICE DISTRESS DETECTED: $triggerReason',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
 
     _showRedAlertEscalationDialog(triggerReason);
   }
