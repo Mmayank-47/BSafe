@@ -62,7 +62,6 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   // In-App Turn-By-Turn Navigation Engine State
   bool _isNavigating = false;
   bool _isNavPaused = false;
-  int _navStepIndex = 0;
   Timer? _navTimer;
   double _navProgressFraction = 0.0;
   final MapController _navMapController = MapController();
@@ -274,11 +273,111 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   String _currentTraversingAreaName = '';
   double _currentTraversingAreaScore = 80.0;
 
+  List<LatLng> _generateGoogleMapsWaypoints(double srcLat, double srcLon, double destLat, double destLon) {
+    final dLat = destLat - srcLat;
+    final dLon = destLon - srcLon;
+
+    return [
+      LatLng(srcLat, srcLon),
+      LatLng(srcLat + dLat * 0.20 + 0.0016, srcLon + dLon * 0.15 - 0.0014),
+      LatLng(srcLat + dLat * 0.42 + 0.0010, srcLon + dLon * 0.45 + 0.0018),
+      LatLng(srcLat + dLat * 0.68 - 0.0014, srcLon + dLon * 0.70 + 0.0012),
+      LatLng(srcLat + dLat * 0.88 + 0.0006, srcLon + dLon * 0.88 - 0.0005),
+      LatLng(destLat, destLon),
+    ];
+  }
+
+  Map<String, dynamic> _computeNavState(List<LatLng> waypoints, double progress) {
+    if (waypoints.isEmpty) {
+      return {
+        'currentPos': const LatLng(21.1458, 79.0882),
+        'bearingRad': 0.0,
+        'traversed': <LatLng>[],
+        'remaining': <LatLng>[],
+        'segmentIndex': 0,
+      };
+    }
+
+    if (waypoints.length == 1) {
+      return {
+        'currentPos': waypoints.first,
+        'bearingRad': 0.0,
+        'traversed': waypoints,
+        'remaining': waypoints,
+        'segmentIndex': 0,
+      };
+    }
+
+    final List<double> segDists = [];
+    double totalDist = 0.0;
+    for (int i = 0; i < waypoints.length - 1; i++) {
+      final p1 = waypoints[i];
+      final p2 = waypoints[i + 1];
+      final dist = math.sqrt(math.pow(p2.latitude - p1.latitude, 2) + math.pow(p2.longitude - p1.longitude, 2));
+      segDists.add(dist);
+      totalDist += dist;
+    }
+
+    if (totalDist == 0.0) {
+      return {
+        'currentPos': waypoints.first,
+        'bearingRad': 0.0,
+        'traversed': waypoints,
+        'remaining': waypoints,
+        'segmentIndex': 0,
+      };
+    }
+
+    final targetDist = progress.clamp(0.0, 1.0) * totalDist;
+    double accumulated = 0.0;
+    int segIdx = 0;
+    double segFrac = 0.0;
+
+    for (int i = 0; i < segDists.length; i++) {
+      if (accumulated + segDists[i] >= targetDist || i == segDists.length - 1) {
+        segIdx = i;
+        final segLen = segDists[i] > 0 ? segDists[i] : 1.0;
+        segFrac = ((targetDist - accumulated) / segLen).clamp(0.0, 1.0);
+        break;
+      }
+      accumulated += segDists[i];
+    }
+
+    final pStart = waypoints[segIdx];
+    final pEnd = waypoints[segIdx + 1];
+
+    final curLat = pStart.latitude + (pEnd.latitude - pStart.latitude) * segFrac;
+    final curLon = pStart.longitude + (pEnd.longitude - pStart.longitude) * segFrac;
+    final currentPos = LatLng(curLat, curLon);
+
+    final dLon = pEnd.longitude - pStart.longitude;
+    final dLat = pEnd.latitude - pStart.latitude;
+    final bearingRad = math.atan2(dLon, dLat);
+
+    final List<LatLng> traversed = [];
+    for (int i = 0; i <= segIdx; i++) {
+      traversed.add(waypoints[i]);
+    }
+    traversed.add(currentPos);
+
+    final List<LatLng> remaining = [currentPos];
+    for (int i = segIdx + 1; i < waypoints.length; i++) {
+      remaining.add(waypoints[i]);
+    }
+
+    return {
+      'currentPos': currentPos,
+      'bearingRad': bearingRad,
+      'traversed': traversed,
+      'remaining': remaining,
+      'segmentIndex': segIdx,
+    };
+  }
+
   void _startInAppNavigation() {
     setState(() {
       _isNavigating = true;
       _isNavPaused = false;
-      _navStepIndex = 0;
       _navProgressFraction = 0.0;
       _isInMidRouteDangerZone = false;
       _hasArrivedAtDestination = false;
@@ -306,6 +405,8 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
     _currentTraversingAreaName = _routeComparison?.source.place ?? 'Origin Area';
     _currentTraversingAreaScore = srcScore;
 
+    final waypoints = _generateGoogleMapsWaypoints(sourceLat, sourceLon, targetLat, targetLon);
+
     // Trigger 2-second Red Alert ONLY if Source or Destination has a 30-50 score
     if (srcScore >= 30.0 && srcScore <= 50.0) {
       _trigger2sRedBlinkingAlert(
@@ -322,23 +423,23 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
     // Center map on starting position
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
-        _navMapController.move(LatLng(sourceLat, sourceLon), 16.5);
+        _navMapController.move(LatLng(sourceLat, sourceLon), 16.8);
       } catch (_) {}
     });
 
     _navTimer?.cancel();
-    // Smooth real-time motion simulation (moves every 350ms progressively to destination)
-    _navTimer = Timer.periodic(const Duration(milliseconds: 350), (timer) {
+    // Ultra-smooth 50ms fluid Google Maps GPS simulation loop
+    _navTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (!mounted || _isNavPaused) return;
       setState(() {
-        _navProgressFraction += 0.012;
+        _navProgressFraction += 0.0018;
 
-        final curLat = sourceLat + (targetLat - sourceLat) * _navProgressFraction.clamp(0.0, 1.0);
-        final curLon = sourceLon + (targetLon - sourceLon) * _navProgressFraction.clamp(0.0, 1.0);
+        final navState = _computeNavState(waypoints, _navProgressFraction);
+        final LatLng curPos = navState['currentPos'] as LatLng;
 
         // Smoothly follow vehicle/arrow with map camera
         try {
-          _navMapController.move(LatLng(curLat, curLon), 16.5);
+          _navMapController.move(curPos, 16.8);
         } catch (_) {}
 
         // Dynamic Area-wise Traversing Score Tracker:
@@ -367,17 +468,8 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
           }
         }
 
-        if (_navProgressFraction >= 0.3 && _navStepIndex < 1) {
-          _navStepIndex = 1;
-        } else if (_navProgressFraction >= 0.6 && _navStepIndex < 2) {
-          _navStepIndex = 2;
-        } else if (_navProgressFraction >= 0.9 && _navStepIndex < 3) {
-          _navStepIndex = 3;
-        }
-
         if (_navProgressFraction >= 1.0) {
           _navProgressFraction = 1.0;
-          _navStepIndex = 3;
           _isInMidRouteDangerZone = false;
           _hasArrivedAtDestination = true;
           _navTimer?.cancel();
@@ -405,7 +497,6 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
       _isNavigating = false;
       _isNavPaused = false;
       _navProgressFraction = 0.0;
-      _navStepIndex = 0;
     });
     Fluttertoast.showToast(msg: "In-App Navigation Ended");
   }
@@ -1463,42 +1554,58 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
     final targetLat = destLoc?.lat ?? 21.155;
     final targetLon = destLoc?.lon ?? 79.082;
 
-    // Interpolate live animated navigation vehicle position
-    final currentVehLat = sourceLat + (targetLat - sourceLat) * _navProgressFraction.clamp(0.0, 1.0);
-    final currentVehLon = sourceLon + (targetLon - sourceLon) * _navProgressFraction.clamp(0.0, 1.0);
+    final waypoints = _generateGoogleMapsWaypoints(sourceLat, sourceLon, targetLat, targetLon);
+    final navState = _computeNavState(waypoints, _navProgressFraction);
 
-    // Calculate heading / bearing angle in radians for arrow rotation
-    final dLon = targetLon - sourceLon;
-    final dLat = targetLat - sourceLat;
-    final bearingRad = math.atan2(dLon, dLat);
+    final LatLng currentVehPos = navState['currentPos'] as LatLng;
+    final double bearingRad = navState['bearingRad'] as double;
+    final List<LatLng> traversedPoints = navState['traversed'] as List<LatLng>;
+    final List<LatLng> remainingPoints = navState['remaining'] as List<LatLng>;
+    final int segIdx = navState['segmentIndex'] as int;
 
-    final navInstructions = _selectedTravelMode == TravelMode.walk
-        ? const [
-            "🚶 Walk north along Lit Pedestrian Sidewalk (98% Lit)",
-            "↗️ Cross Wardha Road at designated Zebra Crossing",
-            "🚶 Follow Well-Lit Commercial Corridor (Active Footfall)",
-            "🏁 Safely Arrived at Destination",
-          ]
-        : const [
-            "⬆️ Head north on Main Arterial Road (95% LED Lit)",
-            "↗️ In 300m, turn right onto Wardha Highway (High Footfall Zone)",
-            "⬆️ Continue straight for 1.8 km (Low Crime Zone)",
-            "🏁 Arriving safely at your Destination",
-          ];
+    // Realistic Google Maps Maneuver Turn Cards
+    final List<Map<String, dynamic>> turnSteps = [
+      {
+        'dist': 'In 350 m',
+        'text': 'Head straight along Lit Arterial Corridor',
+        'icon': Icons.straight_rounded,
+      },
+      {
+        'dist': 'In 180 m',
+        'text': 'Turn right onto Wardha Main Corridor',
+        'icon': Icons.turn_right_rounded,
+      },
+      {
+        'dist': 'In 1.6 km',
+        'text': 'Continue straight on High Safety Highway (96% Lit)',
+        'icon': Icons.straight_rounded,
+      },
+      {
+        'dist': 'In 450 m',
+        'text': 'Turn slightly left towards Destination',
+        'icon': Icons.turn_slight_left_rounded,
+      },
+      {
+        'dist': 'In 60 m',
+        'text': 'Arriving safely at Destination',
+        'icon': Icons.flag_rounded,
+      },
+    ];
 
-    final currentInstruction = navInstructions[_navStepIndex];
+    final currentManeuver = turnSteps[segIdx.clamp(0, turnSteps.length - 1)];
+
     final remainingKm = (detailKm(routeDetail) * (1.0 - _navProgressFraction)).clamp(0.0, 99.0).toStringAsFixed(1);
     final remainingMin = ((detailMin(routeDetail)) * (1.0 - _navProgressFraction)).round().clamp(0, 999);
 
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Fullscreen Navigation Map with Live Camera Tracking
+          // 1. Fullscreen Google Maps Styled Navigation Map with Live Camera Tracking
           FlutterMap(
             mapController: _navMapController,
             options: MapOptions(
-              initialCenter: LatLng(currentVehLat, currentVehLon),
-              initialZoom: 16.5,
+              initialCenter: currentVehPos,
+              initialZoom: 16.8,
             ),
             children: [
               TileLayer(
@@ -1507,103 +1614,139 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
               ),
               PolylineLayer(
                 polylines: [
-                  // Full Planned Route Polyline
-                  Polyline(
-                    points: [
-                      LatLng(sourceLat, sourceLon),
-                      LatLng(targetLat, targetLon),
-                    ],
-                    strokeWidth: 6.0,
-                    color: AppTheme.primaryPurple.withValues(alpha: 0.35),
-                  ),
-                  // Traversed Live Route Polyline
-                  Polyline(
-                    points: [
-                      LatLng(sourceLat, sourceLon),
-                      LatLng(currentVehLat, currentVehLon),
-                    ],
-                    strokeWidth: 6.0,
-                    color: const Color(0xFF10B981),
-                  ),
+                  // 1. Traversed Route Polyline (soft grayed out behind vehicle, exactly like Google Maps)
+                  if (traversedPoints.length >= 2)
+                    Polyline(
+                      points: traversedPoints,
+                      strokeWidth: 5.5,
+                      color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
+                    ),
+
+                  // 2. Active Remaining Route Outline (Deep Google Navigation Blue)
+                  if (remainingPoints.length >= 2)
+                    Polyline(
+                      points: remainingPoints,
+                      strokeWidth: 8.5,
+                      color: const Color(0xFF1E40AF),
+                    ),
+
+                  // 3. Active Remaining Route Main Body
+                  if (remainingPoints.length >= 2)
+                    Polyline(
+                      points: remainingPoints,
+                      strokeWidth: 6.5,
+                      color: const Color(0xFF2563EB),
+                    ),
+
+                  // 4. Active Remaining Route Inner Cyan Core Line
+                  if (remainingPoints.length >= 2)
+                    Polyline(
+                      points: remainingPoints,
+                      strokeWidth: 2.2,
+                      color: const Color(0xFF93C5FD),
+                    ),
                 ],
               ),
               MarkerLayer(
                 markers: [
-                  // Source Origin Marker
+                  // Source Origin Dot
                   Marker(
                     point: LatLng(sourceLat, sourceLon),
-                    width: 32,
-                    height: 32,
+                    width: 24,
+                    height: 24,
                     alignment: Alignment.center,
                     child: Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
                       ),
-                      child: const Icon(Icons.trip_origin_rounded, color: Colors.white, size: 18),
                     ),
                   ),
 
                   // Destination Target Marker
                   Marker(
                     point: LatLng(targetLat, targetLon),
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     alignment: Alignment.center,
-                    child: const Icon(Icons.location_on_rounded, color: AppTheme.accentRose, size: 40),
+                    child: const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 44),
                   ),
 
-                  // Live Vehicle / Walking Position Navigation Arrow (Rotates & Moves Continuously)
+                  // Live Google Maps Navigation Arrow & Directional Light Cone Puck
                   Marker(
-                    point: LatLng(currentVehLat, currentVehLon),
-                    width: 68,
-                    height: 68,
+                    point: currentVehPos,
+                    width: 82,
+                    height: 82,
                     alignment: Alignment.center,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Outer Pulsing Ripple Halo Ring
+                        // A. Google Maps GPS Forward Directional Flashlight Cone
+                        Transform.rotate(
+                          angle: bearingRad,
+                          alignment: Alignment.center,
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                center: Alignment.topCenter,
+                                radius: 0.85,
+                                colors: [
+                                  const Color(0xFF3B82F6).withValues(alpha: 0.55),
+                                  const Color(0xFF3B82F6).withValues(alpha: 0.0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // B. Outer Pulsing Accuracy Halo Ring
                         Container(
-                          width: 64,
-                          height: 64,
+                          width: 52,
+                          height: 52,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppTheme.primaryPurple.withValues(alpha: 0.22),
+                            color: const Color(0xFF3B82F6).withValues(alpha: 0.22),
                             border: Border.all(
-                              color: AppTheme.primaryPurple.withValues(alpha: 0.6),
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.6),
                               width: 1.5,
                             ),
                           ),
                         ),
-                        // Inner Rotated Navigation Arrow Vehicle Disk
+
+                        // C. 3D Google Navigation Chevron Puck
                         Transform.rotate(
-                          angle: _selectedTravelMode == TravelMode.walk ? 0.0 : bearingRad,
+                          angle: bearingRad,
+                          alignment: Alignment.center,
                           child: Container(
-                            width: 44,
-                            height: 44,
+                            width: 38,
+                            height: 38,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                               ),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2.5),
+                              border: Border.all(color: Colors.white, width: 2.8),
                               boxShadow: const [
                                 BoxShadow(
                                   color: Colors.black45,
                                   blurRadius: 10,
-                                  offset: Offset(0, 3),
+                                  offset: Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              _selectedTravelMode == TravelMode.walk
-                                  ? Icons.directions_walk_rounded
-                                  : Icons.navigation_rounded,
-                              color: Colors.white,
-                              size: 26,
+                            child: const Center(
+                              child: Icon(
+                                Icons.navigation_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -1617,23 +1760,23 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
 
           // 1b. Floating Camera Recenter Button
           Positioned(
-            top: 130,
+            top: 135,
             right: 16,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
-                  _navMapController.move(LatLng(currentVehLat, currentVehLon), 16.5);
+                  _navMapController.move(currentVehPos, 16.8);
                   Fluttertoast.showToast(msg: "🎯 Camera centered on navigation arrow");
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.white24),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10)],
                   ),
                   child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 22),
                 ),
@@ -1641,28 +1784,28 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
             ),
           ),
 
-          // 2. Top Turn-By-Turn Guidance Banner
+          // 2. Google Maps Navigation Top Direction Card
           Positioned(
             top: 50,
             left: 16,
             right: 16,
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.96),
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 16, offset: Offset(0, 4))],
+                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 16, offset: Offset(0, 6))],
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryPurple,
+                      color: const Color(0xFF2563EB),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      _selectedTravelMode == TravelMode.walk ? Icons.directions_walk_rounded : Icons.turn_right_rounded,
+                      currentManeuver['icon'] as IconData,
                       color: Colors.white,
                       size: 28,
                     ),
@@ -1674,7 +1817,15 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          currentInstruction,
+                          currentManeuver['dist'] as String,
+                          style: GoogleFonts.outfit(
+                            color: const Color(0xFF60A5FA),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          currentManeuver['text'] as String,
                           style: GoogleFonts.outfit(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -1683,7 +1834,7 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '📍 Area: ${_currentTraversingAreaName.isNotEmpty ? _currentTraversingAreaName : "Current Corridor"} (${_currentTraversingAreaScore.toStringAsFixed(1)}/100) • Safety: 🛡️ ${routeDetail?.safetyIndex ?? 8.8}/10',
+                          '📍 Area: ${_currentTraversingAreaName.isNotEmpty ? _currentTraversingAreaName : "Nagpur Corridor"} (${_currentTraversingAreaScore.toStringAsFixed(1)}/100) • Safety: 🛡️ ${routeDetail?.safetyIndex ?? 9.1}/10',
                           style: GoogleFonts.outfit(
                             color: _currentTraversingAreaScore <= 50.0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
                             fontWeight: FontWeight.w600,
@@ -1966,8 +2117,8 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (ctx) => AlertMessageScreen(
-                        initialLat: currentVehLat,
-                        initialLon: currentVehLon,
+                        initialLat: currentVehPos.latitude,
+                        initialLon: currentVehPos.longitude,
                         initialRecentCallVector: '9109750185',
                       ),
                     ),
