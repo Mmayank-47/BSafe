@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -19,11 +21,18 @@ class _LocationScreenState extends State<LocationScreen> {
   String locationMessage = "Fetching location...";
   String address = "Fetching address...";
   String mapLink = "";
+  StreamSubscription<Position>? _positionSubscription;
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
+  }
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -63,7 +72,7 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   void _listenToLocationUpdates() {
-    Geolocator.getPositionStream(
+    _positionSubscription = Geolocator.getPositionStream(
             locationSettings: const LocationSettings(distanceFilter: 100))
         .listen(_updateLocation);
   }
