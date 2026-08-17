@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:safe/screens/contribution_screen.dart';
 import 'package:safe/screens/emergency_screen.dart';
-import 'package:safe/screens/feed_screen.dart';
 import 'package:safe/screens/home_screen.dart';
 import 'package:safe/screens/location_screen.dart';
 import 'package:safe/theme/app_theme.dart';
@@ -36,7 +36,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     HomeScreen(),
     EmergencyScreen(),
     ContactsScreen(),
-    FeedScreen(),
+    ContributionScreen(),
   ];
 
   final List<_NavItemData> _navItems = const [
@@ -44,7 +44,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     _NavItemData(icon: Icons.shield_rounded, label: 'Safety Audit'),
     _NavItemData(icon: Icons.local_police_rounded, label: 'Emergency'),
     _NavItemData(icon: Icons.people_alt_rounded, label: 'Contacts'),
-    _NavItemData(icon: Icons.auto_awesome_rounded, label: 'Feed'),
+    _NavItemData(icon: Icons.rate_review_rounded, label: 'Contribution'),
   ];
 
   void _onTabTapped(int index) {

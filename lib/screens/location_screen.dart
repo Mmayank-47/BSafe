@@ -13,7 +13,6 @@ import 'package:safe/services/alert_sound_service.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/services/safety_audit_service.dart';
 import 'package:safe/theme/app_theme.dart';
-import 'package:safe/widgets/safety/add_audit_dialog.dart';
 import 'package:safe/widgets/safety/location_detail_sheet.dart';
 import 'package:safe/widgets/safety/safety_marker_layer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -422,35 +421,6 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 80),
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (ctx) => AddAuditDialog(
-                initialLat: lat ?? 21.1458,
-                initialLng: long ?? 79.0882,
-                onAuditSubmitted: () {
-                  _fetchSafetyLocations();
-                  if (mounted) setState(() {});
-                },
-              ),
-            );
-          },
-          backgroundColor: AppTheme.primaryPurple,
-          icon: const Icon(Icons.add_location_alt_rounded, color: Colors.white),
-          label: Text(
-            'Audit Safety (+50 Pts)',
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ),
       body: Stack(
         children: [
           SafeArea(
