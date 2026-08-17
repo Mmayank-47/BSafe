@@ -351,7 +351,7 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
     final name = _nameCtrl.text.trim();
     final age = int.tryParse(_ageCtrl.text.trim()) ?? 0;
     final address = _addressCtrl.text.trim();
-    return name.isNotEmpty && age >= 13 && address.isNotEmpty;
+    return name.isNotEmpty && age >= 1 && age <= 120 && address.isNotEmpty;
   }
 
   Future<void> _autofillLocation() async {
@@ -494,29 +494,19 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
                 const SizedBox(height: 6),
                 _buildTextField(
                   controller: _ageCtrl,
-                  hint: 'Must be 13 or older',
+                  hint: 'e.g. 21',
                   icon: Icons.cake_outlined,
                   inputType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   validator: (v) {
-                    final n = int.tryParse(v ?? '');
-                    if (n == null) return 'Enter a valid age';
-                    if (n < 13) return 'Must be 13 or older';
-                    if (n > 120) return 'Enter a valid age';
+                    final str = v?.trim() ?? '';
+                    if (str.isEmpty) return 'Age is required';
+                    final n = int.tryParse(str);
+                    if (n == null || n < 1 || n > 120) return 'Enter a valid age (1-120)';
                     return null;
                   },
                   semanticsLabel: 'Age input',
                 ),
-                if (_ageCtrl.text.isNotEmpty &&
-                    (int.tryParse(_ageCtrl.text) ?? 0) < 13)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 2),
-                    child: Text(
-                      '⚠ Must be 13 years or older to use bSafe.',
-                      style: GoogleFonts.outfit(
-                          fontSize: 11, color: const Color(0xFFEF4444)),
-                    ),
-                  ),
 
                 const SizedBox(height: 18),
 
