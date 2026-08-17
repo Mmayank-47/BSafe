@@ -10,8 +10,8 @@ class MeshNetworkService {
   factory MeshNetworkService() => _instance;
   MeshNetworkService._internal();
 
-  bool _isMeshActive = true;
-  int _connectedPeersCount = 4; // Simulated nearby opted-in guardian nodes
+  final bool _isMeshActive = true;
+  final int _connectedPeersCount = 4; // Simulated nearby opted-in guardian nodes
   bool get isMeshActive => _isMeshActive;
   int get connectedPeersCount => _connectedPeersCount;
 

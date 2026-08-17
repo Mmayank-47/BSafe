@@ -153,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.blueAccent.withOpacity(0.2),
+                                color: Colors.blueAccent.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -200,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               spreadRadius: 4,
                               blurRadius: 6,
                               offset: const Offset(0, 3),
