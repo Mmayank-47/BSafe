@@ -195,26 +195,31 @@ class _ContributionScreenState extends State<ContributionScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.25),
-                                shape: BoxShape.circle,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.rate_review_rounded, color: Colors.white, size: 22),
                               ),
-                              child: const Icon(Icons.rate_review_rounded, color: Colors.white, size: 22),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Audit Locality Safety Factors',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Audit Locality Safety Factors',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(modalCtx),
@@ -552,50 +557,56 @@ class _ContributionScreenState extends State<ContributionScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.primaryPurple.withValues(alpha: 0.15),
-                          border: Border.all(color: AppTheme.primaryPurple, width: 2),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'N',
-                            style: GoogleFonts.outfit(
-                              color: AppTheme.primaryPurple,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.primaryPurple.withValues(alpha: 0.15),
+                            border: Border.all(color: AppTheme.primaryPurple, width: 2),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'N',
+                              style: GoogleFonts.outfit(
+                                color: AppTheme.primaryPurple,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Nikhil Makhija',
-                            style: GoogleFonts.outfit(
-                              color: AppTheme.textDark,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Nikhil Makhija',
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  color: AppTheme.textDark,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Safeti-Starter • Safety Hero',
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  color: AppTheme.textMuted,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Safeti-Starter • Safety Hero',
-                            style: GoogleFonts.outfit(
-                              color: AppTheme.textMuted,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                   InkWell(
                     onTap: () {

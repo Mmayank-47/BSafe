@@ -398,18 +398,23 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.vibration_rounded, color: Color(0xFFF43F5E), size: 22),
-                            const SizedBox(width: 8),
-                            Text(
-                              "Shake-to-SOS Detection",
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                            ),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.vibration_rounded, color: Color(0xFFF43F5E), size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Shake-to-SOS Detection",
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         Switch(
                           value: _isShakeEnabled,
@@ -432,28 +437,34 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.sensors_rounded, size: 12, color: Color(0xFF8B5CF6)),
-                              SizedBox(width: 4),
-                              Text(
-                                "ACCELEROMETER ACTIVE",
-                                style: TextStyle(
-                                  color: Color(0xFF8B5CF6),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.sensors_rounded, size: 12, color: Color(0xFF8B5CF6)),
+                                SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    "ACCELEROMETER ACTIVE",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Color(0xFF8B5CF6),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 6),
                         ElevatedButton.icon(
                           onPressed: _testShakeSimulation,
                           style: ElevatedButton.styleFrom(
@@ -490,18 +501,23 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.volume_down_rounded, color: Color(0xFFE11D48), size: 22),
-                            const SizedBox(width: 8),
-                            Text(
-                              "Volume Combo SOS Trigger",
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                            ),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.volume_down_rounded, color: Color(0xFFE11D48), size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Volume Combo SOS Trigger",
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         Switch(
                           value: _isVolumeComboEnabled,
@@ -524,28 +540,34 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE11D48).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.style_rounded, size: 12, color: Color(0xFFE11D48)),
-                              SizedBox(width: 4),
-                              Text(
-                                "PATTERN: 3x VOL DOWN + 1x VOL UP",
-                                style: TextStyle(
-                                  color: Color(0xFFE11D48),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE11D48).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.style_rounded, size: 12, color: Color(0xFFE11D48)),
+                                SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    "PATTERN: 3x VOL DOWN + 1x VOL UP",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Color(0xFFE11D48),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 6),
                         ElevatedButton.icon(
                           onPressed: _testVolumeComboSimulation,
                           style: ElevatedButton.styleFrom(
