@@ -267,7 +267,7 @@ class MainActivity: FlutterActivity() {
             @Suppress("DEPRECATION")
             val wakeLock = powerManager.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "bSafe:EmergencyWakeLock"
+                "RakshaSetu:EmergencyWakeLock"
             )
             wakeLock.acquire(10000L) // Wakes up screen for 10 seconds
         } catch (e: Exception) {

@@ -57,7 +57,7 @@ class _SplashScreenState extends State<SplashScreen> {
             Text(
               'RakshaSetu',
               style: GoogleFonts.outfit(
-                fontSize: 38,
+                fontSize: 42,
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
                 letterSpacing: 2,
