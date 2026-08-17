@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:random_string/random_string.dart';
 import 'package:safe/screens/main_navigation_shell.dart';
+import 'package:safe/widgets/contacts/firebase.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // DATA MODELS
@@ -92,16 +94,35 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     });
   }
 
-  void _finishSetup() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const MainNavigationShell(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-            FadeTransition(opacity: animation, child: child),
-      ),
-    );
+  void _finishSetup() async {
+    for (final contact in _contacts) {
+      if (contact.name.trim().isNotEmpty && contact.phone.trim().isNotEmpty) {
+        final id = randomAlphaNumeric(9);
+        final details = {
+          "id": id,
+          "Name": contact.name.trim(),
+          "Number": contact.phone.trim(),
+          "Relationship": contact.relationship,
+        };
+        try {
+          await FirebaseMethods().addContact(details, id);
+        } catch (e) {
+          debugPrint('[Onboarding] Error saving contact: $e');
+        }
+      }
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 600),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MainNavigationShell(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      );
+    }
   }
 
   @override

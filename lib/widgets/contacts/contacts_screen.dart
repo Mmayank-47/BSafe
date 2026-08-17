@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,19 +16,66 @@ class ContactsScreen extends StatefulWidget {
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
-  Stream? contactsStream;
+  final FirebaseMethods _firebaseMethods = FirebaseMethods();
+  List<Map<String, dynamic>> _contactsList = [];
+  StreamSubscription? _localSub;
+  StreamSubscription? _firestoreSub;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    getAllList();
+    _loadContacts();
   }
 
-  getAllList() async {
-    contactsStream = await FirebaseMethods().getContactList();
+  Future<void> _loadContacts() async {
+    // 1. Load immediate local contacts (includes contacts from Onboarding Step 2)
+    final local = await _firebaseMethods.getLocalContacts();
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _contactsList = local;
+        _isLoading = false;
+      });
     }
+
+    // 2. Subscribe to local stream
+    _localSub = _firebaseMethods.localContactsStream.listen((contacts) {
+      if (mounted) {
+        setState(() {
+          _contactsList = contacts;
+        });
+      }
+    });
+
+    // 3. Subscribe to Firestore stream if available
+    try {
+      final fsStream = await _firebaseMethods.getContactList();
+      _firestoreSub = fsStream.listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          final List<Map<String, dynamic>> fromFs = [];
+          for (final doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data != null) {
+              final item = Map<String, dynamic>.from(data);
+              item['id'] = doc.id;
+              fromFs.add(item);
+            }
+          }
+          if (fromFs.isNotEmpty && mounted) {
+            setState(() {
+              _contactsList = fromFs;
+            });
+          }
+        }
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _localSub?.cancel();
+    _firestoreSub?.cancel();
+    super.dispose();
   }
 
   void uploadContact() {
@@ -106,7 +153,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   "Number": numberController.text,
                 };
 
-                await FirebaseMethods().addContact(details, id).then((value) {
+                await _firebaseMethods.addContact(details, id).then((value) {
                   Fluttertoast.showToast(msg: "Contact Added Successfully!");
                 });
                 if (ctx.mounted) {
@@ -178,119 +225,113 @@ class _ContactsScreenState extends State<ContactsScreen> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: StreamBuilder(
-                  stream: contactsStream,
-                  builder: (context, AsyncSnapshot snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data.docs.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.contacts_rounded,
-                              size: 64,
-                              color: AppTheme.textMuted,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No trusted contacts added yet.',
-                              style: GoogleFonts.outfit(
-                                fontSize: 16,
-                                color: AppTheme.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: uploadContact,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryPurple,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              icon: const Icon(Icons.add, color: Colors.white),
-                              label: const Text('Add Contact', style: TextStyle(color: Colors.white)),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: snapshot.data.docs.length,
-                      itemBuilder: (ctx, index) {
-                        DocumentSnapshot ds = snapshot.data.docs[index];
-                        final name = ds['Name'] ?? 'Contact';
-                        final number = ds['Number'] ?? '';
-
-                        return Dismissible(
-                          key: Key(ds.id),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentRose,
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 24),
-                            child: const Icon(
-                              Icons.delete_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          onDismissed: (direction) async {
-                            await FirebaseMethods().deleteContact(ds.id);
-                            Fluttertoast.showToast(msg: "Contact Deleted");
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            padding: const EdgeInsets.all(12),
-                            decoration: AppTheme.glassCardDecoration(borderRadius: 24),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                radius: 24,
-                                backgroundColor: AppTheme.primaryPurple.withValues(alpha: 0.15),
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                  style: GoogleFonts.outfit(
-                                    color: AppTheme.primaryPurple,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                name,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textDark,
-                                ),
-                              ),
-                              subtitle: Text(
-                                number,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _contactsList.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.contacts_rounded,
+                                  size: 64,
                                   color: AppTheme.textMuted,
                                 ),
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.phone_rounded, color: AppTheme.accentMint),
-                                onPressed: () => _makeCall(number),
-                              ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No trusted contacts added yet.',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    color: AppTheme.textMuted,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: uploadContact,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryPurple,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.add, color: Colors.white),
+                                  label: const Text('Add Contact', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
                             ),
+                          )
+                        : ListView.builder(
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: _contactsList.length,
+                            itemBuilder: (ctx, index) {
+                              final contact = _contactsList[index];
+                              final id = contact['id'] ?? index.toString();
+                              final name = contact['Name'] ?? 'Contact';
+                              final number = contact['Number'] ?? '';
+                              final relationship = contact['Relationship'] ?? 'Emergency Contact';
+
+                              return Dismissible(
+                                key: Key(id),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentRose,
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 24),
+                                  child: const Icon(
+                                    Icons.delete_rounded,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                                onDismissed: (direction) async {
+                                  await _firebaseMethods.deleteContact(id);
+                                  Fluttertoast.showToast(msg: "Contact Deleted");
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 6),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: AppTheme.glassCardDecoration(borderRadius: 24),
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: AppTheme.primaryPurple.withValues(alpha: 0.15),
+                                      child: Text(
+                                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                        style: GoogleFonts.outfit(
+                                          color: AppTheme.primaryPurple,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      name,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textDark,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      '$number • $relationship',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 13,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                    ),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.phone_rounded, color: AppTheme.accentMint),
+                                      onPressed: () => _makeCall(number),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
               ),
             ],
           ),
