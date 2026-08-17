@@ -66,12 +66,7 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   Timer? _navTimer;
   double _navProgressFraction = 0.0;
 
-  final List<String> _navInstructions = const [
-    "⬆️ Head north on Main Arterial Road (95% LED Lit)",
-    "↗️ In 300m, turn right onto Wardha Highway (High Footfall Zone)",
-    "⬆️ Continue straight for 1.8 km (Low Crime Zone)",
-    "🏁 Arriving safely at your Destination",
-  ];
+
 
   List<SafetyLocation> _safetyLocations = [];
 

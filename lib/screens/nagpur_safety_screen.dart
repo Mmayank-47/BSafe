@@ -43,6 +43,7 @@ class _NagpurSafetyScreenState extends State<NagpurSafetyScreen> {
 
   @override
   void dispose() {
+    _streamSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
