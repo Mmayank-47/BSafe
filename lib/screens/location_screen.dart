@@ -1565,7 +1565,7 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
                 onPressed: () {
                   final dest = _destLocalityName;
                   mapLink = 'https://www.google.com/maps/dir/?api=1&origin=${lat ?? 21.1458},${long ?? 79.0882}&destination=$dest';
-                  _sendSMS("9109750185", "bSafe Live Navigation Alert: Heading from $_sourceLocalityName to $dest. Live link: $mapLink");
+                  _sendSMS("9109750185", "RakshaSetu Live Navigation Alert: Heading from $_sourceLocalityName to $dest. Live link: $mapLink");
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.accentRose,

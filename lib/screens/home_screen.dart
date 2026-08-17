@@ -396,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final lat = _liveLat ?? 21.1458;
     final lon = _liveLon ?? 79.0882;
     final message = Uri.encodeComponent(
-      '🚨 EMERGENCY BSAFE ALERT! $reason Live GPS Location: https://maps.google.com/?q=$lat,$lon Helpline: 9109750185',
+      '🚨 EMERGENCY RAKSHASETU ALERT! $reason Live GPS Location: https://maps.google.com/?q=$lat,$lon Helpline: 9109750185',
     );
 
     final smsUri = Uri.parse('sms:$phone?body=$message');
@@ -500,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final targetLat = lat ?? 21.1458;
     final targetLon = lon ?? 79.0882;
     final mapLink = "https://www.google.com/maps/search/?api=1&query=$targetLat,$targetLon";
-    final message = "🚨 EMERGENCY SOS ALERT from bSafe! I need immediate help at exact GPS location ($targetLat, $targetLon)\nLive Map Pin: $mapLink";
+    final message = "🚨 EMERGENCY SOS ALERT from RakshaSetu! I need immediate help at exact GPS location ($targetLat, $targetLon)\nLive Map Pin: $mapLink";
 
     final whatsappUrl = Uri.parse("https://wa.me/91$phoneNumber?text=${Uri.encodeComponent(message)}");
     try {

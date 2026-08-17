@@ -214,7 +214,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               ),
               const SizedBox(width: 10),
               Text(
-                'bSafe',
+                'RakshaSetu',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -356,8 +356,8 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
 
   bool get _isFormValid {
     final name = _nameCtrl.text.trim();
-    final age = int.tryParse(_ageCtrl.text.trim()) ?? 0;
-    return name.isNotEmpty && age >= 1 && age <= 120 && _selectedGender.isNotEmpty;
+    final ageStr = _ageCtrl.text.trim();
+    return name.isNotEmpty && ageStr.isNotEmpty;
   }
 
   @override
@@ -479,6 +479,7 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
                   icon: Icons.badge_outlined,
                   inputType: TextInputType.name,
                   textCapitalization: TextCapitalization.words,
+                  onChanged: (_) => setState(() {}),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Name is required' : null,
                   semanticsLabel: 'Full Name input',
@@ -495,6 +496,7 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
                   icon: Icons.cake_outlined,
                   inputType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => setState(() {}),
                   validator: (v) {
                     final str = v?.trim() ?? '';
                     if (str.isEmpty) return 'Age is required';
@@ -1259,6 +1261,7 @@ Widget _buildTextField({
   TextCapitalization textCapitalization = TextCapitalization.none,
   List<TextInputFormatter>? inputFormatters,
   String? Function(String?)? validator,
+  ValueChanged<String>? onChanged,
   int maxLines = 1,
   required String semanticsLabel,
 }) {
@@ -1272,6 +1275,7 @@ Widget _buildTextField({
       inputFormatters: inputFormatters,
       maxLines: maxLines,
       validator: validator,
+      onChanged: onChanged,
       style: GoogleFonts.outfit(
         fontSize: 14.5,
         fontWeight: FontWeight.w500,

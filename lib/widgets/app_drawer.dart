@@ -498,7 +498,7 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   void _shareSafetipin(BuildContext ctx) async {
-    const message = "Track my live location on bSafe: https://www.google.com/maps/search/?api=1&query=21.1458,79.0882";
+    const message = "Track my live location on RakshaSetu: https://www.google.com/maps/search/?api=1&query=21.1458,79.0882";
     final Uri url = Uri.parse("sms:9109750185?body=${Uri.encodeComponent(message)}");
 
     try {
@@ -544,7 +544,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text('Your feedback helps us make bSafe stronger for everyone!',
+              Text('Your feedback helps us make RakshaSetu stronger for everyone!',
                   style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted)),
               const SizedBox(height: 16),
               Row(
@@ -591,7 +591,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   onPressed: () {
                     _feedbackController.clear();
                     Navigator.pop(context);
-                    Fluttertoast.showToast(msg: "Thank you for rating bSafe $_userRating Stars! ❤️");
+                    Fluttertoast.showToast(msg: "Thank you for rating RakshaSetu $_userRating Stars! ❤️");
                   },
                   child: Text('Submit Review', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
@@ -633,7 +633,7 @@ class _AppDrawerState extends State<AppDrawer> {
             _buildHotlineRow(ctx, 'Police Control Room', '100', Icons.local_police_rounded),
             _buildHotlineRow(ctx, 'Women Helpline', '1091', Icons.shield_rounded),
             _buildHotlineRow(ctx, 'National Cyber Crime', '1930', Icons.security_rounded),
-            _buildHotlineRow(ctx, 'bSafe Emergency Contact', '9109750185', Icons.contact_phone_rounded),
+            _buildHotlineRow(ctx, 'RakshaSetu Emergency Contact', '9109750185', Icons.contact_phone_rounded),
             const SizedBox(height: 16),
           ],
         ),
@@ -682,7 +682,7 @@ class _AppDrawerState extends State<AppDrawer> {
             Text('Logout Confirmation', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ],
         ),
-        content: Text('Are you sure you want to log out of bSafe Agent Protection?', style: GoogleFonts.outfit()),
+        content: Text('Are you sure you want to log out of RakshaSetu Agent Protection?', style: GoogleFonts.outfit()),
         actions: [
           TextButton(
             child: const Text('Cancel'),
