@@ -5,6 +5,7 @@ class AppTheme {
   // Brand Color Palette inspired by modern soft-gradient glassmorphism
   static const Color primaryPurple = Color(0xFF8B5CF6);
   static const Color primaryViolet = Color(0xFFC084FC);
+  static const Color accentNeonPurple = Color(0xFFA855F7);
   static const Color accentRose = Color(0xFFF43F5E);
   static const Color accentPink = Color(0xFFFB7185);
   static const Color accentMint = Color(0xFF34D399);

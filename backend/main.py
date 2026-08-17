@@ -11,6 +11,7 @@ from backend.routes.journey import router as journey_router
 from backend.routes.sos import router as sos_router
 from backend.routes.incidents import router as incidents_router
 from backend.routes.mesh import router as mesh_router
+from backend.routes.safety import router as safety_router
 from backend.websocket.nostr_relay import router as ws_router
 from backend.agents.closed_loop_sla_agent import closed_loop_sla_agent
 
@@ -35,6 +36,7 @@ app.include_router(journey_router)
 app.include_router(sos_router)
 app.include_router(incidents_router)
 app.include_router(mesh_router)
+app.include_router(safety_router)
 app.include_router(ws_router)
 
 # Async Background SLA Monitor

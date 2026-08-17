@@ -35,8 +35,17 @@ class SystemDatabase:
         self.incidents: Dict[str, dict] = {}
         self.mesh_relays: List[dict] = []
         
+        # Gamified Safety Contribution Module tables
+        self.safety_locations: Dict[str, dict] = {}
+        self.safety_audits: Dict[str, dict] = {}
+        self.safety_points_ledger: List[dict] = []
+        self.safety_user_profiles: Dict[str, dict] = {}
+        self.safety_user_badges: List[dict] = []
+        self.safety_leaderboard_cache: List[dict] = []
+
         # Pre-seed verified spatial responders (Police, Security, Volunteers)
         self.seed_responders()
+        self.seed_safety_locations()
 
     def seed_responders(self):
         self.responders = [
@@ -45,6 +54,104 @@ class SystemDatabase:
             {"responder_id": "RESP_003", "name": "Women Safety NGO Volunteer Squad", "role": "NGO_VOLUNTEER", "lat": 28.6150, "lon": 77.2100, "phone": "+919123456789"},
             {"responder_id": "RESP_004", "name": "Rapid Response Emergency Ambulance", "role": "AMBULANCE", "lat": 28.6120, "lon": 77.2050, "phone": "102"},
         ]
+
+    def seed_safety_locations(self):
+        """Pre-seeds realistic safety audits and locations in Nagpur & Delhi."""
+        now_iso = datetime.utcnow().isoformat()
+        
+        # Default user profile
+        self.safety_user_profiles["USER_DEMO_001"] = {
+            "user_id": "USER_DEMO_001",
+            "display_alias": "SafetyHero_Ananya",
+            "use_alias": True,
+            "total_points": 450,
+            "level": 3,
+            "level_title": "Pathfinder",
+            "streak_count": 5,
+            "last_audit_date": datetime.utcnow().date().isoformat(),
+            "weekly_audits_count": 4,
+            "city": "Nagpur"
+        }
+        
+        # Add pre-seeded user badges
+        self.safety_user_badges.extend([
+            {"user_id": "USER_DEMO_001", "badge_id": "NIGHT_OWL", "name": "Night Owl", "description": "Completed 10 night-time safety audits", "icon": "🌙", "earned_at": now_iso},
+            {"user_id": "USER_DEMO_001", "badge_id": "FIRST_RESPONDER", "name": "First Responder", "description": "First person to audit a new unmapped location", "icon": "⚡", "earned_at": now_iso},
+        ])
+
+        # Pre-seeded locations
+        seeds = [
+            {
+                "id": "LOC_NAGPUR_01",
+                "lat": 21.1458,
+                "lng": 79.0882,
+                "address_label": "Sitabuldi Metro Station Entrance, Nagpur",
+                "category_tag": "METRO_STATION",
+                "safety_score": 4.6,
+                "audit_count": 12,
+                "created_at": now_iso
+            },
+            {
+                "id": "LOC_NAGPUR_02",
+                "lat": 21.1255,
+                "lng": 79.0520,
+                "address_label": "VNIT South Gate Walkway, Bajaj Nagar",
+                "category_tag": "ISOLATED_STRETCH",
+                "safety_score": 2.4,
+                "audit_count": 8,
+                "created_at": now_iso
+            },
+            {
+                "id": "LOC_NAGPUR_03",
+                "lat": 21.1500,
+                "lng": 79.0800,
+                "address_label": "Futala Lake Promenade, Nagpur",
+                "category_tag": "PARK",
+                "safety_score": 3.8,
+                "audit_count": 15,
+                "created_at": now_iso
+            },
+            {
+                "id": "LOC_DELHI_01",
+                "lat": 28.6139,
+                "lng": 77.2090,
+                "address_label": "Connaught Place Radial Road 2, New Delhi",
+                "category_tag": "MARKET",
+                "safety_score": 4.8,
+                "audit_count": 25,
+                "created_at": now_iso
+            }
+        ]
+
+        for s in seeds:
+            self.safety_locations[s["id"]] = s
+            # Create a representative audit for each seed
+            audit_id = f"AUD_{s['id']}"
+            self.safety_audits[audit_id] = {
+                "id": audit_id,
+                "user_id": "USER_DEMO_001",
+                "location_id": s["id"],
+                "latitude": s["lat"],
+                "longitude": s["lng"],
+                "address_label": s["address_label"],
+                "category_tag": s["category_tag"],
+                "time_of_day": "EVENING",
+                "lighting": 5 if s["safety_score"] > 4.0 else 2,
+                "openness": 4,
+                "visibility": 4,
+                "crowd": "CROWDED" if s["safety_score"] > 4.0 else "FEW",
+                "security": "YES_FREQUENT" if s["safety_score"] > 4.0 else "NO",
+                "walk_path": 4,
+                "public_transport": 5,
+                "gender_diversity": 4,
+                "feeling": 5 if s["safety_score"] > 4.0 else 2,
+                "comment": f"Verified safety conditions at {s['address_label']}.",
+                "photo_url": "https://images.unsplash.com/photo-1519501025264-65ba15a82390",
+                "points_awarded": 65,
+                "upvotes": 7,
+                "status": "ACTIVE",
+                "created_at": now_iso
+            }
 
     def register_user(self, request: UserRegisterRequest) -> dict:
         self.users[request.user_id] = request

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/services.dart';
@@ -69,6 +70,30 @@ class NagpurLocality {
       topCrimeTypes: crimes,
     );
   }
+
+  NagpurLocality copyWith({
+    String? place,
+    double? lat,
+    double? lon,
+    double? safetyScore,
+    String? riskTier,
+    String? kmeansTier,
+    int? totalIncidents,
+    int? highSeverityCount,
+    List<TopCrimeType>? topCrimeTypes,
+  }) {
+    return NagpurLocality(
+      place: place ?? this.place,
+      lat: lat ?? this.lat,
+      lon: lon ?? this.lon,
+      safetyScore: safetyScore ?? this.safetyScore,
+      riskTier: riskTier ?? this.riskTier,
+      kmeansTier: kmeansTier ?? this.kmeansTier,
+      totalIncidents: totalIncidents ?? this.totalIncidents,
+      highSeverityCount: highSeverityCount ?? this.highSeverityCount,
+      topCrimeTypes: topCrimeTypes ?? this.topCrimeTypes,
+    );
+  }
 }
 
 class LocalityMatchResult {
@@ -89,8 +114,80 @@ class NagpurSafetyService {
   List<NagpurLocality> _localities = [];
   bool _isLoaded = false;
 
+  final StreamController<String> _eventStreamController =
+      StreamController<String>.broadcast();
+  Stream<String> get eventStream => _eventStreamController.stream;
+
   List<NagpurLocality> get localities => List.unmodifiable(_localities);
   bool get isLoaded => _isLoaded;
+
+  /// Recalculates and dynamically updates a place's safety score upon user contribution.
+  NagpurLocality? updateLocalityWithAudit({
+    required double lat,
+    required double lon,
+    required Map<String, dynamic> auditData,
+  }) {
+    if (_localities.isEmpty) return null;
+
+    int matchIdx = -1;
+    double minDistance = double.infinity;
+
+    for (int i = 0; i < _localities.length; i++) {
+      final dist = _haversineDistanceKm(lat, lon, _localities[i].lat, _localities[i].lon);
+      if (dist < minDistance) {
+        minDistance = dist;
+        matchIdx = i;
+      }
+    }
+
+    if (matchIdx == -1 || minDistance > 10.0) return null;
+
+    final target = _localities[matchIdx];
+
+    // 1. Calculate Audit Score (0 - 100)
+    double crowdScore = {'NONE': 1.0, 'FEW': 2.0, 'MODERATE': 4.0, 'CROWDED': 5.0}[auditData['crowd']] ?? 3.0;
+    double securityScore = {'YES_FREQUENT': 5.0, 'YES_OCCASIONAL': 3.5, 'NO': 1.0}[auditData['security']] ?? 2.5;
+
+    double avg9 = (
+      (auditData['lighting'] as num? ?? 3).toDouble() +
+      (auditData['openness'] as num? ?? 3).toDouble() +
+      (auditData['visibility'] as num? ?? 3).toDouble() +
+      crowdScore +
+      securityScore +
+      (auditData['walk_path'] as num? ?? 3).toDouble() +
+      (auditData['public_transport'] as num? ?? 3).toDouble() +
+      (auditData['gender_diversity'] as num? ?? 3).toDouble() +
+      (auditData['feeling'] as num? ?? 3).toDouble()
+    ) / 9.0;
+
+    double auditScore100 = ((avg9 - 1.0) / 4.0) * 100.0;
+    double weight = 1.0 + (auditData['photo_url'] != null ? 0.15 : 0.0) + (auditData['comment'] != null ? 0.10 : 0.0);
+    double nEffective = target.totalIncidents > 0 ? min(target.totalIncidents.toDouble(), 15.0) : 5.0;
+
+    double newScore = ((nEffective * target.safetyScore) + (weight * auditScore100)) / (nEffective + weight);
+    newScore = double.parse(newScore.clamp(0.0, 100.0).toStringAsFixed(1));
+
+    String newTier = 'Moderate';
+    if (newScore >= 80.0) {
+      newTier = 'Very Safe';
+    } else if (newScore >= 60.0) {
+      newTier = 'Safe';
+    } else if (newScore >= 45.0) {
+      newTier = 'Moderate';
+    } else {
+      newTier = 'Risky';
+    }
+
+    final updatedLocality = target.copyWith(
+      safetyScore: newScore,
+      riskTier: newTier,
+      totalIncidents: target.totalIncidents + 1,
+    );
+
+    _localities[matchIdx] = updatedLocality;
+    _eventStreamController.add('LOCALITY_SCORE_UPDATED');
+    return updatedLocality;
+  }
 
   Future<List<NagpurLocality>> loadSafetyScores() async {
     if (_isLoaded && _localities.isNotEmpty) {
