@@ -6,10 +6,16 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 /// Edge AI Acoustic & Voice-to-Text Hotword Engine.
-/// Uses live physical microphone hardware sampling and Speech-to-Text transcription.
-/// Distress signal triggers when a hotword is spoken at >= 85 dB.
-/// Uses a 5-second cross-check window to handle timing mismatch between
-/// noise_meter dB readings and speech_to_text word recognition.
+///
+/// ARCHITECTURE: noise_meter and speech_to_text CANNOT share the Android
+/// microphone simultaneously. This engine alternates between them:
+///
+/// Phase 1 (MONITOR):  noise_meter reads dB levels continuously.
+///                     When dB >= 85 threshold, switch to Phase 2.
+/// Phase 2 (CAPTURE):  Pause noise_meter, start speech_to_text for 8 seconds
+///                     to capture hotwords ("help", "bachao", "save me").
+///                     If hotword found → fire distress alert.
+///                     After 8s, return to Phase 1.
 class EdgeAudioEngine {
   static final EdgeAudioEngine _instance = EdgeAudioEngine._internal();
   factory EdgeAudioEngine() => _instance;
@@ -19,11 +25,8 @@ class EdgeAudioEngine {
   double _currentDecibelLevel = 48.0;
   DateTime? _lastTriggerTime;
 
-  // Track hotword and dB independently to cross-check within a time window
-  String? _lastMatchedHotword;
-  DateTime? _lastHotwordTime;
-  DateTime? _lastHighDbTime;
-  bool _alreadyFiredForWindow = false;
+  bool _inCaptureMode = false;
+  Timer? _captureTimeout;
 
   final StreamController<double> _decibelStreamController = StreamController<double>.broadcast();
   final StreamController<String> _hotwordStreamController = StreamController<String>.broadcast();
@@ -52,127 +55,138 @@ class EdgeAudioEngine {
   void startEngine() async {
     if (_isListening) return;
     _isListening = true;
-    debugPrint('[Edge AI Audio Engine] Live acoustic & voice-to-text hotword engine initializing...');
+    debugPrint('[Edge AI Audio Engine] Initializing...');
 
     try {
-      // 1. Request microphone permission
       PermissionStatus status = await Permission.microphone.status;
       if (!status.isGranted) {
         status = await Permission.microphone.request();
       }
-
       if (!status.isGranted) {
         debugPrint('[Edge AI Audio Engine] Microphone permission not granted.');
         _isListening = false;
         return;
       }
 
-      // 2. Initialize Speech-To-Text model for continuous hotword tracking
-      _initSpeechToText();
-
-      // 3. Initialize NoiseMeter for live decibel tracking
-      _noiseMeter ??= NoiseMeter();
-      _noiseSubscription = _noiseMeter!.noise.listen(
-        (NoiseReading noiseReading) {
-          double db = noiseReading.meanDecibel;
-          if (db.isFinite && !db.isNaN && db > 0) {
-            _currentDecibelLevel = double.parse(db.toStringAsFixed(1));
-            _decibelStreamController.add(_currentDecibelLevel);
-
-            // Always keep STT listening for real-time hotword capture
-            _startVoiceToTextListening();
-
-            // CHECK 1: dB just crossed 85 — check if a hotword was spoken recently (within 5s)
-            if (_currentDecibelLevel >= 85.0) {
-              _lastHighDbTime = DateTime.now();
-              if (_lastHotwordTime != null &&
-                  DateTime.now().difference(_lastHotwordTime!).inSeconds <= 5 &&
-                  !_alreadyFiredForWindow) {
-                _fireDistressAlert(_lastMatchedHotword ?? 'DISTRESS');
-              }
-            }
-          }
-        },
-        onError: (Object error) {
-          debugPrint('[Edge AI Audio Engine] Microphone noise stream error: $error');
-          _isListening = false;
-        },
-        cancelOnError: false,
+      // Pre-initialize STT so it's ready when needed
+      _speechToText ??= SpeechToText();
+      _speechEnabled = await _speechToText!.initialize(
+        onError: (val) => debugPrint('[STT Error] $val'),
+        onStatus: (status) => debugPrint('[STT Status] $status'),
       );
+      debugPrint('[Edge AI Audio Engine] STT initialized: $_speechEnabled');
+
+      // Start Phase 1: dB monitoring
+      _startNoiseMonitoring();
     } catch (e) {
-      debugPrint('[Edge AI Audio Engine] Exception starting audio engine: $e');
+      debugPrint('[Edge AI Audio Engine] Exception: $e');
       _isListening = false;
     }
   }
 
-  void _initSpeechToText() async {
-    try {
-      _speechToText ??= SpeechToText();
-      _speechEnabled = await _speechToText!.initialize(
-        onError: (val) {
-          debugPrint('[STT Error] $val');
-          if (_isListening) {
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (_isListening) _startVoiceToTextListening();
-            });
+  // ── PHASE 1: MONITOR dB levels ──────────────────────────────────────
+  void _startNoiseMonitoring() {
+    if (!_isListening) return;
+    _inCaptureMode = false;
+    debugPrint('[Edge AI Audio Engine] Phase 1: dB monitoring active');
+
+    _noiseMeter ??= NoiseMeter();
+    _noiseSubscription = _noiseMeter!.noise.listen(
+      (NoiseReading noiseReading) {
+        double db = noiseReading.meanDecibel;
+        if (db.isFinite && !db.isNaN && db > 0) {
+          _currentDecibelLevel = double.parse(db.toStringAsFixed(1));
+          _decibelStreamController.add(_currentDecibelLevel);
+
+          // When dB crosses 85 threshold → switch to capture mode
+          if (_currentDecibelLevel >= 85.0 && !_inCaptureMode) {
+            debugPrint('[Edge AI Audio Engine] 🔊 dB threshold crossed: ${_currentDecibelLevel}dB → switching to speech capture');
+            _switchToCaptureMode();
           }
-        },
-        onStatus: (status) {
-          debugPrint('[STT Status] $status');
-          if (status == 'done' || status == 'notListening') {
-            if (_isListening) {
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (_isListening) _startVoiceToTextListening();
-              });
-            }
-          }
-        },
-      );
-      if (_speechEnabled) {
-        _startVoiceToTextListening();
-      }
-    } catch (e) {
-      debugPrint('[STT Init Error] $e');
-    }
+        }
+      },
+      onError: (Object error) {
+        debugPrint('[Edge AI Audio Engine] Noise stream error: $error');
+        // Retry after 1 second
+        Future.delayed(const Duration(seconds: 1), () {
+          if (_isListening && !_inCaptureMode) _startNoiseMonitoring();
+        });
+      },
+      cancelOnError: false,
+    );
   }
 
-  void _startVoiceToTextListening() async {
-    if (_speechToText == null || !_speechEnabled) return;
-    if (_speechToText!.isListening) return;
+  // ── PHASE 2: CAPTURE hotwords via STT ───────────────────────────────
+  void _switchToCaptureMode() {
+    if (_inCaptureMode) return;
+    _inCaptureMode = true;
+
+    // Step 1: Stop noise_meter to free the microphone
+    _noiseSubscription?.cancel();
+    _noiseSubscription = null;
+    debugPrint('[Edge AI Audio Engine] Phase 2: noise_meter paused, starting STT capture');
+
+    // Step 2: Start STT after a brief delay to let mic release
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _startSpeechCapture();
+    });
+
+    // Step 3: Set timeout — return to Phase 1 after 8 seconds if no hotword
+    _captureTimeout?.cancel();
+    _captureTimeout = Timer(const Duration(seconds: 8), () {
+      debugPrint('[Edge AI Audio Engine] Capture timeout. Returning to dB monitoring.');
+      _stopSpeechCapture();
+      _startNoiseMonitoring();
+    });
+  }
+
+  void _startSpeechCapture() async {
+    if (_speechToText == null || !_speechEnabled) {
+      debugPrint('[Edge AI Audio Engine] STT not available, returning to monitoring');
+      _inCaptureMode = false;
+      _startNoiseMonitoring();
+      return;
+    }
 
     try {
+      if (_speechToText!.isListening) {
+        await _speechToText!.stop();
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
       await _speechToText!.listen(
         onResult: _onSpeechResult,
         listenOptions: SpeechListenOptions(
-          listenFor: const Duration(hours: 1),
-          pauseFor: const Duration(seconds: 10),
+          listenFor: const Duration(seconds: 7),
+          pauseFor: const Duration(seconds: 5),
           partialResults: true,
           cancelOnError: false,
           listenMode: ListenMode.dictation,
         ),
       );
+      debugPrint('[Edge AI Audio Engine] STT now actively listening for hotwords...');
     } catch (e) {
-      debugPrint('[STT Listen Exception] $e');
+      debugPrint('[Edge AI Audio Engine] STT listen failed: $e');
+      _inCaptureMode = false;
+      _captureTimeout?.cancel();
+      _startNoiseMonitoring();
     }
+  }
+
+  void _stopSpeechCapture() {
+    try {
+      _speechToText?.stop();
+    } catch (_) {}
   }
 
   void _onSpeechResult(SpeechRecognitionResult result) {
     String words = result.recognizedWords.toLowerCase().trim();
-    debugPrint('[STT Recognized]: $words (Current dB: $_currentDecibelLevel)');
+    debugPrint('[STT Recognized]: "$words"');
 
     for (final word in _distressHotwords) {
       if (words.contains(word)) {
-        _lastMatchedHotword = word;
-        _lastHotwordTime = DateTime.now();
-        _alreadyFiredForWindow = false;
-        debugPrint('[Edge AI Audio Engine] Hotword "$word" captured. Checking dB...');
-
-        // CHECK 2: Hotword just matched — check if dB was >= 85 recently (within 5s)
-        if (_currentDecibelLevel >= 85.0 ||
-            (_lastHighDbTime != null &&
-             DateTime.now().difference(_lastHighDbTime!).inSeconds <= 5)) {
-          _fireDistressAlert(word);
-        }
+        debugPrint('[Edge AI Audio Engine] 🚨 HOTWORD MATCH: "$word" in "$words"');
+        _fireDistressAlert(word);
         break;
       }
     }
@@ -180,13 +194,24 @@ class EdgeAudioEngine {
 
   void _fireDistressAlert(String hotword) {
     final now = DateTime.now();
-    if (_lastTriggerTime != null && now.difference(_lastTriggerTime!).inSeconds < 10) {
-      return; // Cooldown: don't fire again within 10 seconds
+    if (_lastTriggerTime != null && now.difference(_lastTriggerTime!).inSeconds < 15) {
+      return; // Cooldown: don't fire again within 15 seconds
     }
     _lastTriggerTime = now;
-    _alreadyFiredForWindow = true;
-    _hotwordStreamController.add('Hotword Detected: "${hotword.toUpperCase()}" at ${_currentDecibelLevel.toStringAsFixed(1)} dB');
+
+    // Stop capture mode and return to monitoring
+    _captureTimeout?.cancel();
+    _stopSpeechCapture();
+
+    _hotwordStreamController.add(
+      'Hotword Detected: "${hotword.toUpperCase()}" at ${_currentDecibelLevel.toStringAsFixed(1)} dB',
+    );
     debugPrint('[Edge AI Audio Engine] 🚨 DISTRESS ALERT FIRED: $hotword at ${_currentDecibelLevel}dB');
+
+    // Resume dB monitoring after alert cooldown
+    Future.delayed(const Duration(seconds: 15), () {
+      if (_isListening) _startNoiseMonitoring();
+    });
   }
 
   void simulateExtremeScreamSpike(double dbLevel, String? hotword) {
@@ -199,11 +224,12 @@ class EdgeAudioEngine {
 
   void stopEngine() {
     _isListening = false;
+    _captureTimeout?.cancel();
     try {
       _noiseSubscription?.cancel();
       _speechToText?.stop();
     } catch (_) {}
     _noiseSubscription = null;
-    debugPrint('[Edge AI Audio Engine] Acoustic & Speech engine stopped.');
+    debugPrint('[Edge AI Audio Engine] Engine stopped.');
   }
 }
