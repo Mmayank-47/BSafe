@@ -86,18 +86,10 @@ class _ContributionScreenState extends State<ContributionScreen> {
               height: MediaQuery.of(context).size.height * 0.85,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF2E1065),
-                    const Color(0xFF1E1B4B),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+                gradient: AppTheme.purpleHeroGradient,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                border: Border.all(color: AppTheme.accentNeonPurple, width: 1.5),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black54, blurRadius: 24, offset: Offset(0, -6)),
+                  BoxShadow(color: Colors.black38, blurRadius: 24, offset: Offset(0, -6)),
                 ],
               ),
               child: SingleChildScrollView(
@@ -110,7 +102,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                         width: 48,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: Colors.white38,
+                          color: Colors.white60,
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
@@ -125,7 +117,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: AppTheme.accentNeonPurple.withValues(alpha: 0.3),
+                                color: Colors.white.withValues(alpha: 0.25),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.rate_review_rounded, color: Colors.white, size: 22),
@@ -143,7 +135,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(modalCtx),
-                          icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                          icon: const Icon(Icons.close_rounded, color: Colors.white),
                         ),
                       ],
                     ),
@@ -155,14 +147,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white24),
+                        border: Border.all(color: Colors.white38),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedLocalityName,
-                          dropdownColor: const Color(0xFF1E1B4B),
+                          dropdownColor: AppTheme.primaryPurple,
                           isExpanded: true,
                           style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
                           items: (_nagpurService.localities.isNotEmpty
@@ -223,10 +215,10 @@ class _ContributionScreenState extends State<ContributionScreen> {
                       children: CrowdDensity.values.map((c) {
                         final isSelected = _crowd == c;
                         return ChoiceChip(
-                          label: Text(c.name.toUpperCase(), style: GoogleFonts.outfit(fontSize: 12, color: Colors.white)),
+                          label: Text(c.name.toUpperCase(), style: GoogleFonts.outfit(fontSize: 12, color: isSelected ? AppTheme.textDark : Colors.white)),
                           selected: isSelected,
-                          selectedColor: AppTheme.accentNeonPurple,
-                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          selectedColor: Colors.white,
+                          backgroundColor: Colors.white.withValues(alpha: 0.15),
                           onSelected: (_) => setModalState(() => _crowd = c),
                         );
                       }).toList(),
@@ -241,9 +233,9 @@ class _ContributionScreenState extends State<ContributionScreen> {
                       style: GoogleFonts.outfit(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'e.g. Well-lit street, active CCTV cameras present...',
-                        hintStyle: GoogleFonts.outfit(color: Colors.white38),
+                        hintStyle: GoogleFonts.outfit(color: Colors.white60),
                         filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.08),
+                        fillColor: Colors.white.withValues(alpha: 0.15),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       ),
                     ),
@@ -288,7 +280,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: GoogleFonts.outfit(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-            Text('$value / 5', style: GoogleFonts.outfit(color: AppTheme.accentCyan, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text('$value / 5', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
         Slider(
@@ -296,8 +288,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
           min: 1,
           max: 5,
           divisions: 4,
-          activeColor: AppTheme.accentNeonPurple,
-          inactiveColor: Colors.white24,
+          activeColor: Colors.white,
+          inactiveColor: Colors.white38,
           onChanged: (val) => onChanged(val.round()),
         ),
       ],
@@ -371,7 +363,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User Profile Header Matching Reference Design Mockup
+              // User Profile Header Matching Safety Audit Theme & Black Text
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -382,14 +374,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
                         height: 52,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF06B6D4).withValues(alpha: 0.2),
-                          border: Border.all(color: const Color(0xFF06B6D4), width: 2),
+                          color: AppTheme.primaryPurple.withValues(alpha: 0.15),
+                          border: Border.all(color: AppTheme.primaryPurple, width: 2),
                         ),
                         child: Center(
                           child: Text(
                             'N',
                             style: GoogleFonts.outfit(
-                              color: const Color(0xFF06B6D4),
+                              color: AppTheme.primaryPurple,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
@@ -403,7 +395,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                           Text(
                             'Nikhil Makhija',
                             style: GoogleFonts.outfit(
-                              color: Colors.white,
+                              color: AppTheme.textDark,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -411,8 +403,9 @@ class _ContributionScreenState extends State<ContributionScreen> {
                           Text(
                             'Safeti-Starter • Safety Hero',
                             style: GoogleFonts.outfit(
-                              color: Colors.white70,
+                              color: AppTheme.textMuted,
                               fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -428,10 +421,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryPurple.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.accentNeonPurple, width: 1.5),
+                      decoration: AppTheme.glassCardDecoration(
+                        borderColor: AppTheme.primaryPurple.withValues(alpha: 0.4),
                       ),
                       child: Row(
                         children: [
@@ -439,7 +430,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                           Text(
                             'Leaderboard',
                             style: GoogleFonts.outfit(
-                              color: Colors.white,
+                              color: AppTheme.primaryPurple,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -452,14 +443,18 @@ class _ContributionScreenState extends State<ContributionScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 3 Key Stats Grid (Point, Contribute, Level)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatColumn('$_userPoints', 'Point'),
-                  _buildStatColumn('$_totalContributeActions', 'Contribute'),
-                  _buildStatColumn('$_userLevel', 'Level'),
-                ],
+              // 3 Key Stats Grid (Point, Contribute, Level) in Dark Text & Purple Accents
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: AppTheme.glassCardDecoration(),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatColumn('$_userPoints', 'Point'),
+                    _buildStatColumn('$_totalContributeActions', 'Contribute'),
+                    _buildStatColumn('$_userLevel', 'Level'),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -467,9 +462,9 @@ class _ContributionScreenState extends State<ContributionScreen> {
               Text(
                 'Levels completed',
                 style: GoogleFonts.outfit(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textDark,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
@@ -483,7 +478,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                   children: [
                     _buildMedalBadge('🏅 Level 1', '$_userPoints Pts', const Color(0xFFF59E0B), isUnlocked: true),
                     const SizedBox(width: 12),
-                    _buildMedalBadge('🥈 Level 2', '100 Pts', AppTheme.accentNeonPurple, isUnlocked: _userLevel >= 2),
+                    _buildMedalBadge('🥈 Level 2', '100 Pts', AppTheme.primaryPurple, isUnlocked: _userLevel >= 2),
                     const SizedBox(width: 12),
                     _buildMedalBadge('🥉 Level 3', '250 Pts', AppTheme.primaryPurple, isUnlocked: _userLevel >= 3),
                     const SizedBox(width: 12),
@@ -495,10 +490,10 @@ class _ContributionScreenState extends State<ContributionScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Contribute vs Timeline Tabbed Switch
+              // Contribute vs Timeline Tabbed Switch Bar
               Container(
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.white12, width: 1)),
+                  border: Border(bottom: BorderSide(color: Colors.black12, width: 1)),
                 ),
                 child: Row(
                   children: [
@@ -510,7 +505,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                             Text(
                               'Contribute',
                               style: GoogleFonts.outfit(
-                                color: _selectedTab == 0 ? const Color(0xFF06B6D4) : Colors.white60,
+                                color: _selectedTab == 0 ? AppTheme.primaryPurple : AppTheme.textMuted,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -518,7 +513,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                             const SizedBox(height: 8),
                             Container(
                               height: 3,
-                              color: _selectedTab == 0 ? const Color(0xFF06B6D4) : Colors.transparent,
+                              color: _selectedTab == 0 ? AppTheme.primaryPurple : Colors.transparent,
                             ),
                           ],
                         ),
@@ -532,7 +527,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                             Text(
                               'Timeline',
                               style: GoogleFonts.outfit(
-                                color: _selectedTab == 1 ? const Color(0xFF06B6D4) : Colors.white60,
+                                color: _selectedTab == 1 ? AppTheme.primaryPurple : AppTheme.textMuted,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -540,7 +535,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                             const SizedBox(height: 8),
                             Container(
                               height: 3,
-                              color: _selectedTab == 1 ? const Color(0xFF06B6D4) : Colors.transparent,
+                              color: _selectedTab == 1 ? AppTheme.primaryPurple : Colors.transparent,
                             ),
                           ],
                         ),
@@ -552,22 +547,20 @@ class _ContributionScreenState extends State<ContributionScreen> {
               const SizedBox(height: 20),
 
               if (_selectedTab == 0) ...[
-                // Contribution Action Breakdown Table
+                // Contribution Action Breakdown Table Card (Light Glassmorphism Theme)
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.accentNeonPurple.withValues(alpha: 0.4), width: 1.5),
+                  padding: const EdgeInsets.all(18),
+                  decoration: AppTheme.glassCardDecoration(
+                    borderColor: AppTheme.primaryPurple.withValues(alpha: 0.3),
                   ),
                   child: Column(
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Contribute', style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text('Number', style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text('Point', style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('Contribute', style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('Number', style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('Point', style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -576,47 +569,41 @@ class _ContributionScreenState extends State<ContributionScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
+                          color: AppTheme.primaryPurple.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.4)),
+                          border: Border.all(color: AppTheme.primaryPurple.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Total Contribution Actions', style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text('$_totalContributeActions', style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text('$_userPoints', style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text('Total Contribution Actions', style: GoogleFonts.outfit(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text('$_totalContributeActions', style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text('$_userPoints', style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
                       ),
                       const SizedBox(height: 12),
 
                       _buildActionRow('Rate Nearby Place', '$_rateNearbyCount', '$_rateNearbyPoints'),
-                      const Divider(color: Colors.white12),
+                      const Divider(color: Colors.black12),
                       _buildActionRow('Share App', '2', '2'),
-                      const Divider(color: Colors.white12),
+                      const Divider(color: Colors.black12),
                       _buildActionRow('Sign Up', '1', '6'),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // "➕ Make Contribution" CTA Button (Styled to match SOS & Safety Hero purple card)
+                // "➕ Make Contribution" CTA Button (Styled to match SOS & Safety Hero purple hero gradient)
                 SizedBox(
                   width: double.infinity,
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF2E1065),
-                          const Color(0xFF1E1B4B),
-                        ],
-                      ),
+                      gradient: AppTheme.purpleHeroGradient,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppTheme.accentNeonPurple, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryPurple.withValues(alpha: 0.4),
+                          color: AppTheme.primaryPurple.withValues(alpha: 0.35),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -646,17 +633,17 @@ class _ContributionScreenState extends State<ContributionScreen> {
                 // Timeline List
                 Text(
                   'Recent Contribution Activity Timeline',
-                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.outfit(color: AppTheme.textDark, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 if (_recentAudits.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: AppTheme.glassCardDecoration(borderRadius: 20),
+                    decoration: AppTheme.glassCardDecoration(),
                     child: Center(
                       child: Text(
                         'No contributions yet. Tap "Make Contribution" to submit an audit!',
-                        style: GoogleFonts.outfit(color: Colors.white60, fontSize: 13),
+                        style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13),
                       ),
                     ),
                   )
@@ -676,7 +663,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
         Text(
           value,
           style: GoogleFonts.outfit(
-            color: const Color(0xFF06B6D4),
+            color: AppTheme.primaryPurple,
             fontSize: 32,
             fontWeight: FontWeight.bold,
           ),
@@ -684,7 +671,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
         Text(
           label,
           style: GoogleFonts.outfit(
-            color: Colors.white70,
+            color: AppTheme.textMuted,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -695,12 +682,12 @@ class _ContributionScreenState extends State<ContributionScreen> {
 
   Widget _buildMedalBadge(String title, String pts, Color color, {required bool isUnlocked}) {
     return Container(
-      width: 80,
+      width: 84,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isUnlocked ? color.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.05),
+        color: isUnlocked ? color.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isUnlocked ? color : Colors.white24, width: 1.5),
+        border: Border.all(color: isUnlocked ? color : Colors.black12, width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -710,7 +697,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
           Text(
             title.split(' ')[1],
             style: GoogleFonts.outfit(
-              color: isUnlocked ? Colors.white : Colors.white38,
+              color: isUnlocked ? AppTheme.textDark : AppTheme.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.bold,
             ),
@@ -718,7 +705,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
           Text(
             pts,
             style: GoogleFonts.outfit(
-              color: isUnlocked ? color : Colors.white38,
+              color: isUnlocked ? color : AppTheme.textMuted,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -734,9 +721,9 @@ class _ContributionScreenState extends State<ContributionScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(action, style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13)),
-          Text(number, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-          Text(points, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(action, style: GoogleFonts.outfit(color: AppTheme.textDark, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(number, style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(points, style: GoogleFonts.outfit(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 13)),
         ],
       ),
     );
@@ -746,7 +733,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: AppTheme.glassCardDecoration(borderRadius: 20),
+      decoration: AppTheme.glassCardDecoration(),
       child: Row(
         children: [
           Container(
@@ -759,8 +746,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.addressLabel, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(item.comment ?? 'Verified safety factors.', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12)),
+                Text(item.addressLabel, style: GoogleFonts.outfit(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(item.comment ?? 'Verified safety factors.', style: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 12)),
               ],
             ),
           ),
