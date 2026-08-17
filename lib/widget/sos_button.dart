@@ -5,7 +5,7 @@ class SOSButton extends StatefulWidget {
   const SOSButton({super.key});
 
   @override
-  _SOSButtonState createState() => _SOSButtonState();
+  State<SOSButton> createState() => _SOSButtonState();
 }
 
 class _SOSButtonState extends State<SOSButton> {

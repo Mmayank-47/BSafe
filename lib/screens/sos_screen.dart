@@ -6,7 +6,6 @@ import 'package:safe/components/custom_button.dart';
 import 'package:safe/screens/location_service.dart';
 import 'package:safe/services/agent_api_service.dart';
 import 'package:safe/services/contact_resolution_service.dart';
-import 'package:safe/services/mesh_network_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,7 +20,6 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
   final TextEditingController textController = TextEditingController(text: "EMERGENCY! I need immediate help!");
   final LocationService _locationService = LocationService();
   final ContactResolutionService _contactResolver = ContactResolutionService();
-  final MeshNetworkService _meshService = MeshNetworkService();
 
   String locationMessage = "Fetching location...";
   String mapLink = "";
@@ -148,7 +146,7 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
               child: const Text('Dispatch SMS / Mesh', style: TextStyle(color: Colors.white)),
               onPressed: () {
                 Navigator.of(context).pop();
-                sendSMS("9876543210", message);
+                sendSMS("9109750185", message);
               },
             ),
           ],

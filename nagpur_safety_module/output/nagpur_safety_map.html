@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nagpur Safety Map — Dispatch View</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<style>
+/* safety-map.css
+   Drop-in styles for the SafetyMap widget's popups/tooltips (Light Theme).
+   Panel/legend/dashboard chrome for the demo lives in index.html's <style>
+   block so it's easy to strip out if you're only embedding the raw map. */
+
+.leaflet-popup-content-wrapper {
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+.leaflet-popup-tip {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+}
+.leaflet-popup-content {
+  margin: 14px 16px;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+.safety-popup h4 {
+  margin: 0 0 6px 0;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  color: #0F172A;
+}
+.safety-popup-score {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.safety-popup-tier {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748B;
+  margin: 2px 0 10px 0;
+}
+.safety-popup-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  color: #334155;
+  margin-bottom: 8px;
+}
+.safety-popup-crimes {
+  margin: 8px 0 0 0;
+  padding: 8px 0 0 0;
+  border-top: 1px dashed #E2E8F0;
+  list-style: none;
+  font-size: 12.5px;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.leaflet-tooltip {
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  padding: 3px 7px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.leaflet-tooltip-top:before {
+  border-top-color: #CBD5E1;
+}
+
+</style>
+
+<style>
+  :root {
+    --bg-base: #F8FAFC;
+    --bg-panel: #FFFFFF;
+    --bg-panel-2: #F1F5F9;
+    --border: #E2E8F0;
+    --text-primary: #0F172A;
+    --text-muted: #64748B;
+    --accent-blue: #2563EB;
+    --accent-blue-soft: #DBEAFE;
+    --safety-green: #16A34A;
+    --safety-green-soft: #DCFCE7;
+    --warning-amber: #F59E0B;
+    --warning-amber-soft: #FEF3C7;
+    --emergency-red: #DC2626;
+    --emergency-red-soft: #FEE2E2;
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg-base); }
+  body { font-family: var(--font-body); color: var(--text-primary); }
+
+  #app { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+  #safety-map { position: absolute; inset: 0; }
+
+  .leaflet-container { background: var(--bg-base); }
+
+  /* ---------- floating panels ---------- */
+  .panel {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+  }
+
+  .title-panel {
+    position: absolute; top: 18px; left: 18px; z-index: 500;
+    padding: 16px 20px; max-width: 320px;
+  }
+  .title-panel .eyebrow {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em;
+    color: var(--accent-blue); text-transform: uppercase; margin-bottom: 6px; font-weight: 600;
+  }
+  .title-panel h1 {
+    font-family: var(--font-display); font-size: 22px; margin: 0 0 6px 0;
+    letter-spacing: -0.01em; line-height: 1.15; color: #0F172A;
+  }
+  .title-panel p {
+    font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;
+  }
+
+  .sidebar {
+    position: absolute; top: 18px; right: 18px; bottom: 18px; z-index: 500;
+    width: 280px; padding: 18px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .sidebar-section-title {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-muted); margin: 0 0 10px 0;
+  }
+
+  /* gauge legend */
+  .gauge {
+    display: flex; gap: 12px; align-items: stretch;
+  }
+  .gauge-bar {
+    width: 14px; border-radius: 7px;
+    background: linear-gradient(to top, #DC2626 0%, #EA580C 25%, #F59E0B 50%, #4ADE80 75%, #16A34A 100%);
+    flex-shrink: 0;
+  }
+  .gauge-labels {
+    display: flex; flex-direction: column; justify-content: space-between;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  }
+  .gauge-labels span:first-child { color: var(--safety-green); font-weight: 600; }
+  .gauge-labels span:last-child { color: var(--emergency-red); font-weight: 600; }
+
+  /* tier filter chips */
+  .tier-chips { display: flex; flex-direction: column; gap: 6px; }
+  .tier-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-panel-2); cursor: pointer; font-size: 12.5px;
+    color: var(--text-primary); transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .tier-chip:hover { border-color: var(--accent-blue); }
+  .tier-chip.active { border-color: var(--accent-blue); background: #EFF6FF; font-weight: 500; }
+  .tier-chip .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tier-chip .count {
+    margin-left: auto; font-family: var(--font-mono); color: var(--text-muted); font-size: 11px;
+  }
+
+  /* ranked list */
+  .rank-list { display: flex; flex-direction: column; gap: 6px; }
+  .rank-row {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  }
+  .rank-row:hover { background: var(--bg-panel-2); }
+  .rank-row .swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .rank-row .name { flex: 1; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-row .val { font-family: var(--font-mono); color: var(--text-muted); font-size: 11px; }
+
+  .stat-summary {
+    display: flex; flex-direction: column; gap: 2px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  }
+  .stat-summary b { color: #0F172A; font-size: 13px; }
+
+  .disclaimer {
+    position: absolute; bottom: 10px; left: 18px; z-index: 500;
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.92); padding: 5px 9px; border-radius: 6px;
+    max-width: 480px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  }
+
+  @media (max-width: 720px) {
+    .sidebar { width: 220px; }
+    .title-panel { max-width: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="safety-map"></div>
+
+  <div class="title-panel panel">
+    <div class="eyebrow">Nagpur &middot; Safety Intelligence</div>
+    <h1>Neighbourhood Safety Map</h1>
+    <p>Composite safety score per locality, derived from weighted crime severity, type, recency, and enforcement signals. 100 = safest, 0 = least safe.</p>
+  </div>
+
+  <div class="sidebar panel">
+    <div>
+      <div class="sidebar-section-title">Safety Scale</div>
+      <div class="gauge">
+        <div class="gauge-bar"></div>
+        <div class="gauge-labels">
+          <span>100 &middot; Very Safe</span>
+          <span style="margin-top:auto"></span>
+          <span>0 &middot; High Risk</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Filter by Tier</div>
+      <div class="tier-chips" id="tier-chips"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Least Safe (Top 5)</div>
+      <div class="rank-list" id="riskiest-list"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Safest (Top 5)</div>
+      <div class="rank-list" id="safest-list"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Dataset</div>
+      <div class="stat-summary" id="stat-summary"></div>
+    </div>
+  </div>
+
+  <div class="disclaimer">Synthetic dataset — for ML/MVP demonstration only, not real incident data.</div>
+</div>
+
+<script>
+/**
+ * safety-map.js
+ * --------------
+ * Framework-agnostic, drop-in map widget that renders place-level safety
+ * scores as red<->green shaded markers on a Leaflet map.
+ *
+ * Dependencies (load before this script, or via your bundler):
+ *   - Leaflet.js  (https://leafletjs.com)  — CSS + JS
+ *
+ * Usage (plain HTML):
+ *   <div id="safety-map" style="height:600px"></div>
+ *   <script src="leaflet.js"></script>
+ *   <script src="safety-map.js"></script>
+ *   <script>
+ *     const map = new SafetyMap('safety-map', { center: [21.1458, 79.0882], zoom: 12 });
+ *     map.loadFromUrl('safety_scores.json');   // or map.loadData(jsonObject)
+ *   </script>
+ *
+ * Usage (React/Vue/any bundler):
+ *   import 'leaflet/dist/leaflet.css';
+ *   import L from 'leaflet';
+ *   window.L = L; // this module expects a global L, or refactor the two lines
+ *                 // below to `import L from 'leaflet'` directly.
+ *   import { SafetyMap } from './safety-map.js';
+ *
+ * Data contract (matches output/safety_scores.json from the Python pipeline):
+ *   {
+ *     "places": [
+ *       {
+ *         "place": "Sitabuldi",
+ *         "lat": 21.148, "lon": 79.081,
+ *         "safety_score": 62.3,          // 0-100, 100 = safest
+ *         "risk_tier": "Moderate",
+ *         "kmeans_tier": "Moderate",
+ *         "total_incidents": 12,
+ *         "high_severity_count": 2,
+ *         "top_crime_types": [{ "Crime_Type": "Theft", "count": 5 }, ...]
+ *       }, ...
+ *     ]
+ *   }
+ */
+
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) {
+    module.exports = factory();
+  } else {
+    root.SafetyMap = factory();
+  }
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  const DEFAULT_OPTIONS = {
+    center: [21.1458, 79.0882], // Nagpur
+    zoom: 12,
+    minZoom: 10,
+    maxZoom: 18,
+    tileUrl: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    tileAttribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    minRadius: 9,
+    maxRadius: 26,
+    onMarkerClick: null, // (placeRecord) => void
+  };
+
+  // Calm Emergency Intelligence Palette: Emergency Red (#DC2626) -> Amber (#F59E0B) -> Safety Green (#16A34A)
+  const COLOR_STOPS = [
+    { score: 0, color: [220, 38, 38] },   // Emergency Red #DC2626 (Immediate Danger)
+    { score: 25, color: [234, 88, 12] },  // Orange-Red #EA580C (High Risk)
+    { score: 50, color: [245, 158, 11] }, // Amber #F59E0B (Potential Risk)
+    { score: 75, color: [74, 222, 128] }, // Soft Green #4ADE80 (Safe)
+    { score: 100, color: [22, 163, 74] }, // Safety Green #16A34A (Very Safe)
+  ];
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function scoreToColor(score) {
+    const s = Math.max(0, Math.min(100, score));
+    for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
+      const cur = COLOR_STOPS[i];
+      const next = COLOR_STOPS[i + 1];
+      if (s >= cur.score && s <= next.score) {
+        const t = (s - cur.score) / (next.score - cur.score);
+        const rgb = [
+          Math.round(lerp(cur.color[0], next.color[0], t)),
+          Math.round(lerp(cur.color[1], next.color[1], t)),
+          Math.round(lerp(cur.color[2], next.color[2], t)),
+        ];
+        return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+      }
+    }
+    return "rgb(120,120,120)";
+  }
+
+  function scoreToRadius(score, totalIncidents, maxIncidents, opts) {
+    // Radius primarily reflects incident volume (visibility of "how much
+    // signal" backs the score), scaled between minRadius..maxRadius.
+    const ratio = maxIncidents > 0 ? totalIncidents / maxIncidents : 0;
+    return Math.round(lerp(opts.minRadius, opts.maxRadius, Math.sqrt(ratio)));
+  }
+
+  function buildPopupHtml(place) {
+    const crimes = (place.top_crime_types || [])
+      .map((c) => `<li>${c.Crime_Type} &times; ${c.count}</li>`)
+      .join("");
+    return `
+      <div class="safety-popup">
+        <h4>${place.place}</h4>
+        <div class="safety-popup-score" style="color:${scoreToColor(place.safety_score)}">
+          ${place.safety_score.toFixed(1)} / 100
+        </div>
+        <div class="safety-popup-tier">${place.risk_tier}</div>
+        <div class="safety-popup-stats">
+          <span>${place.total_incidents} incidents logged</span>
+          <span>${place.high_severity_count} high-severity</span>
+        </div>
+        ${crimes ? `<ul class="safety-popup-crimes">${crimes}</ul>` : ""}
+      </div>`;
+  }
+
+  class SafetyMap {
+    constructor(containerId, options) {
+      if (typeof L === "undefined") {
+        throw new Error("SafetyMap requires Leaflet (global `L`) to be loaded first.");
+      }
+      this.opts = Object.assign({}, DEFAULT_OPTIONS, options || {});
+      this.map = L.map(containerId, {
+        center: this.opts.center,
+        zoom: this.opts.zoom,
+        minZoom: this.opts.minZoom,
+        maxZoom: this.opts.maxZoom,
+      });
+      L.tileLayer(this.opts.tileUrl, {
+        attribution: this.opts.tileAttribution,
+        maxZoom: this.opts.maxZoom,
+      }).addTo(this.map);
+
+      this.markersLayer = L.layerGroup().addTo(this.map);
+      this.places = [];
+      this._activeTierFilter = null;
+    }
+
+    async loadFromUrl(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
+      const data = await res.json();
+      this.loadData(data);
+      return data;
+    }
+
+    loadData(data) {
+      this.places = (data.places || data).slice();
+      this._render();
+    }
+
+    setTierFilter(tier /* string | null */) {
+      this._activeTierFilter = tier;
+      this._render();
+    }
+
+    _render() {
+      this.markersLayer.clearLayers();
+      if (!this.places.length) return;
+
+      const maxIncidents = Math.max(...this.places.map((p) => p.total_incidents || 0));
+      const visible = this._activeTierFilter
+        ? this.places.filter((p) => p.risk_tier === this._activeTierFilter)
+        : this.places;
+
+      visible.forEach((place) => {
+        if (place.lat == null || place.lon == null) return;
+        const color = scoreToColor(place.safety_score);
+        const radius = scoreToRadius(place.safety_score, place.total_incidents, maxIncidents, this.opts);
+
+        const marker = L.circleMarker([place.lat, place.lon], {
+          radius,
+          fillColor: color,
+          color: "#0b0f14",
+          weight: 1.5,
+          opacity: 0.9,
+          fillOpacity: 0.85,
+        });
+
+        marker.bindTooltip(`${place.place}: ${place.safety_score.toFixed(1)}`, {
+          direction: "top",
+          offset: [0, -radius],
+        });
+        marker.bindPopup(buildPopupHtml(place));
+
+        if (this.opts.onMarkerClick) {
+          marker.on("click", () => this.opts.onMarkerClick(place));
+        }
+
+        marker.addTo(this.markersLayer);
+      });
+    }
+
+    fitToMarkers() {
+      const pts = this.places
+        .filter((p) => p.lat != null && p.lon != null)
+        .map((p) => [p.lat, p.lon]);
+      if (pts.length) this.map.fitBounds(pts, { padding: [30, 30] });
+    }
+
+    destroy() {
+      this.map.remove();
+    }
+  }
+
+  SafetyMap.scoreToColor = scoreToColor; // exposed for legends/UI reuse
+
+  return SafetyMap;
+});
+
+</script>
+<script>
+  let SAFETY_DATA = null;
+  const __SAFETY_DATA_PLACEHOLDER__ = {
+  "generated_from": "nagpur_crime_dataset_synthetic_1000.csv",
+  "city": "Nagpur",
+  "score_meaning": "0 = least safe, 100 = safest",
+  "place_count": 63,
+  "places": [
+    {
+      "place": "Jaitala",
+      "lat": 21.16,
+      "lon": 79.025,
+      "safety_score": 100.0,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 5,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Gambling",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Chaoni",
+      "lat": 21.167,
+      "lon": 79.078,
+      "safety_score": 93.9,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Cybercrime (OTP/Loan App Fraud)",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Gambling",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Rajendra Nagar",
+      "lat": 21.145,
+      "lon": 79.06,
+      "safety_score": 92.5,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cattle Theft",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Hawrapeth",
+      "lat": 21.152,
+      "lon": 79.102,
+      "safety_score": 91.5,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Indora",
+      "lat": 21.17,
+      "lon": 79.095,
+      "safety_score": 85.5,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Suyog Nagar",
+      "lat": 21.14,
+      "lon": 79.12,
+      "safety_score": 78.3,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 13,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Subhash Nagar",
+      "lat": 21.135,
+      "lon": 79.1,
+      "safety_score": 77.9,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 9,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Bhandewadi",
+      "lat": 21.125,
+      "lon": 79.135,
+      "safety_score": 68.9,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Vayusena Nagar",
+      "lat": 21.1,
+      "lon": 79.05,
+      "safety_score": 65.1,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Drug Trafficking",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Yashodhara Nagar",
+      "lat": 21.135,
+      "lon": 79.125,
+      "safety_score": 62.9,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 13,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Mominpura",
+      "lat": 21.16,
+      "lon": 79.105,
+      "safety_score": 56.2,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 11,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Wadi",
+      "lat": 21.165,
+      "lon": 79.03,
+      "safety_score": 56.2,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Assault",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Jaripatka",
+      "lat": 21.18,
+      "lon": 79.1,
+      "safety_score": 55.5,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 16,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Gaddi Godam",
+      "lat": 21.158,
+      "lon": 79.105,
+      "safety_score": 54.9,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 16,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "MIDC",
+      "lat": 21.11,
+      "lon": 79.065,
+      "safety_score": 54.6,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Kalyan Nagar",
+      "lat": 21.16,
+      "lon": 79.125,
+      "safety_score": 54.1,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 18,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Sakkardara",
+      "lat": 21.12,
+      "lon": 79.12,
+      "safety_score": 52.6,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 17,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cattle Theft",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Khapri",
+      "lat": 21.06,
+      "lon": 79.05,
+      "safety_score": 51.8,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Beltarodi",
+      "lat": 21.087,
+      "lon": 79.053,
+      "safety_score": 50.9,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 21,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Civil Lines",
+      "lat": 21.155,
+      "lon": 79.082,
+      "safety_score": 48.6,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 18,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Kapil Nagar",
+      "lat": 21.12,
+      "lon": 79.14,
+      "safety_score": 47.5,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 19,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Pipla",
+      "lat": 21.07,
+      "lon": 79.11,
+      "safety_score": 46.4,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Kalmeshwar",
+      "lat": 21.23,
+      "lon": 78.92,
+      "safety_score": 46.2,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 10,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Pratap Nagar",
+      "lat": 21.13,
+      "lon": 79.06,
+      "safety_score": 44.9,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 17,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Manish Nagar",
+      "lat": 21.115,
+      "lon": 79.048,
+      "safety_score": 44.5,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 20,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Hudkeshwar",
+      "lat": 21.095,
+      "lon": 79.035,
+      "safety_score": 43.2,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 12,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Ashok Nagar",
+      "lat": 21.135,
+      "lon": 79.095,
+      "safety_score": 42.2,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 10,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Kotwali",
+      "lat": 21.152,
+      "lon": 79.108,
+      "safety_score": 41.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 15,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Robbery",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Mankapur",
+      "lat": 21.185,
+      "lon": 79.07,
+      "safety_score": 41.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 7,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Gandhinagar",
+      "lat": 21.11,
+      "lon": 79.07,
+      "safety_score": 41.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cybercrime (OTP/Loan App Fraud)",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Wardhaman Nagar",
+      "lat": 21.165,
+      "lon": 79.12,
+      "safety_score": 40.8,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 15,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Bajaj Nagar",
+      "lat": 21.1225,
+      "lon": 79.057,
+      "safety_score": 39.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 17,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Gokulpeth",
+      "lat": 21.143,
+      "lon": 79.073,
+      "safety_score": 37.4,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Khaparkheda",
+      "lat": 21.28,
+      "lon": 79.0,
+      "safety_score": 36.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 6,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Eve Teasing / Harassment",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Kidnapping",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Sadar",
+      "lat": 21.158,
+      "lon": 79.078,
+      "safety_score": 36.4,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 23,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 6
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Tehsil",
+      "lat": 21.15,
+      "lon": 79.108,
+      "safety_score": 36.3,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 18,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cybercrime (OTP/Loan App Fraud)",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Hingna",
+      "lat": 21.115,
+      "lon": 79.01,
+      "safety_score": 34.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Safe",
+      "total_incidents": 19,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Ravi Nagar",
+      "lat": 21.13,
+      "lon": 79.068,
+      "safety_score": 34.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 26,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Gitti Khadan",
+      "lat": 21.175,
+      "lon": 79.085,
+      "safety_score": 34.4,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 9,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Bajeria",
+      "lat": 21.159,
+      "lon": 79.117,
+      "safety_score": 34.4,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Safe",
+      "total_incidents": 19,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Nandanvan",
+      "lat": 21.12,
+      "lon": 79.115,
+      "safety_score": 34.0,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 21,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Mangalwari",
+      "lat": 21.15,
+      "lon": 79.098,
+      "safety_score": 32.6,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 21,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 6
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Sonegaon",
+      "lat": 21.105,
+      "lon": 79.048,
+      "safety_score": 32.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Itwari",
+      "lat": 21.158,
+      "lon": 79.108,
+      "safety_score": 32.1,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 23,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Ramdaspeth",
+      "lat": 21.142,
+      "lon": 79.078,
+      "safety_score": 27.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 27,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Sitabuldi",
+      "lat": 21.148,
+      "lon": 79.081,
+      "safety_score": 27.1,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Molestation",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Byramji Town",
+      "lat": 21.165,
+      "lon": 79.07,
+      "safety_score": 27.0,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 10,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Robbery",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Gandhibagh",
+      "lat": 21.155,
+      "lon": 79.115,
+      "safety_score": 25.6,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Shraddhanand Peth",
+      "lat": 21.15,
+      "lon": 79.098,
+      "safety_score": 23.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 28,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 5
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "place": "Trimurti Nagar",
+      "lat": 21.135,
+      "lon": 79.05,
+      "safety_score": 22.2,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Fatal Road Accident (Rash Driving)",
+          "count": 2
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Mahal",
+      "lat": 21.156,
+      "lon": 79.115,
+      "safety_score": 20.8,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 20,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Godhni",
+      "lat": 21.05,
+      "lon": 79.045,
+      "safety_score": 20.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 12,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Giripeth",
+      "lat": 21.135,
+      "lon": 79.072,
+      "safety_score": 16.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 17,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Ajni",
+      "lat": 21.1265,
+      "lon": 79.087,
+      "safety_score": 13.7,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 24,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Friends Colony",
+      "lat": 21.105,
+      "lon": 79.065,
+      "safety_score": 12.1,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 23,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Dharampeth",
+      "lat": 21.142,
+      "lon": 79.068,
+      "safety_score": 11.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 27,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Besa",
+      "lat": 21.098,
+      "lon": 79.085,
+      "safety_score": 10.7,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Seminary Hills",
+      "lat": 21.17,
+      "lon": 79.062,
+      "safety_score": 7.8,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 7,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Robbery",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Imambada",
+      "lat": 21.16,
+      "lon": 79.11,
+      "safety_score": 5.3,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 22,
+      "high_severity_count": 8,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Molestation",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Fatal Road Accident (Rash Driving)",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Lakadganj",
+      "lat": 21.165,
+      "lon": 79.115,
+      "safety_score": 4.2,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 25,
+      "high_severity_count": 7,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Pachpaoli",
+      "lat": 21.165,
+      "lon": 79.108,
+      "safety_score": 2.7,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 24,
+      "high_severity_count": 8,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Pardi",
+      "lat": 21.175,
+      "lon": 79.06,
+      "safety_score": 1.4,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 27,
+      "high_severity_count": 7,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Robbery",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Ganeshpeth",
+      "lat": 21.148,
+      "lon": 79.085,
+      "safety_score": 0.0,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 9,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Fatal Road Accident (Rash Driving)",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Kidnapping",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Molestation",
+          "count": 2
+        }
+      ]
+    }
+  ]
+};
+
+  const map = new SafetyMap('safety-map', {
+    center: [21.1458, 79.0882],
+    zoom: 12,
+    onMarkerClick: (place) => highlightInSidebar(place),
+  });
+
+  const TIER_COLORS = {
+    "Very Safe": "#16A34A",
+    "Safe": "#4ADE80",
+    "Moderate": "#F59E0B",
+    "Risky": "#EA580C",
+    "High Risk": "#DC2626",
+  };
+
+  async function initMap() {
+    try {
+      if (typeof __SAFETY_DATA_PLACEHOLDER__ !== "undefined") {
+        SAFETY_DATA = __SAFETY_DATA_PLACEHOLDER__;
+      }
+    } catch (e) {
+      SAFETY_DATA = null;
+    }
+
+    if (!SAFETY_DATA) {
+      try {
+        SAFETY_DATA = await map.loadFromUrl('../output/safety_scores.json');
+      } catch (err) {
+        console.warn("Relative fetch failed, trying local endpoint...", err);
+        try {
+          SAFETY_DATA = await map.loadFromUrl('/api/safety-scores');
+        } catch (e2) {
+          console.error("Could not load safety data automatically.", e2);
+          return;
+        }
+      }
+    } else {
+      map.loadData(SAFETY_DATA);
+    }
+
+    map.fitToMarkers();
+    renderTierChips();
+    renderRankLists();
+    renderStatSummary();
+  }
+
+  function renderTierChips() {
+    if (!SAFETY_DATA || !SAFETY_DATA.places) return;
+    const container = document.getElementById('tier-chips');
+    container.innerHTML = '';
+    const tierOrder = ["Very Safe", "Safe", "Moderate", "Risky", "High Risk"];
+    const counts = {};
+    SAFETY_DATA.places.forEach(p => counts[p.risk_tier] = (counts[p.risk_tier] || 0) + 1);
+
+    let active = null;
+    tierOrder.forEach(tier => {
+      if (!(tier in counts)) return;
+      const chip = document.createElement('div');
+      chip.className = 'tier-chip';
+      chip.innerHTML = `<span class="dot" style="background:${TIER_COLORS[tier]}"></span>${tier}<span class="count">${counts[tier]}</span>`;
+      chip.onclick = () => {
+        if (active === tier) {
+          active = null;
+          chip.classList.remove('active');
+          map.setTierFilter(null);
+          document.querySelectorAll('.tier-chip').forEach(c => c.classList.remove('active'));
+        } else {
+          active = tier;
+          document.querySelectorAll('.tier-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          map.setTierFilter(tier);
+        }
+      };
+      container.appendChild(chip);
+    });
+  }
+
+  function renderRankLists() {
+    if (!SAFETY_DATA || !SAFETY_DATA.places) return;
+    const sorted = [...SAFETY_DATA.places].sort((a, b) => a.safety_score - b.safety_score);
+    const riskiest = sorted.slice(0, 5);
+    const safest = sorted.slice(-5).reverse();
+
+    const buildRow = (p) => {
+      const row = document.createElement('div');
+      row.className = 'rank-row';
+      row.innerHTML = `<span class="swatch" style="background:${SafetyMap.scoreToColor(p.safety_score)}"></span>
+                        <span class="name">${p.place}</span>
+                        <span class="val">${p.safety_score.toFixed(1)}</span>`;
+      row.onclick = () => {
+        map.map.flyTo([p.lat, p.lon], 15, { duration: 0.6 });
+      };
+      return row;
+    };
+
+    const riskiestEl = document.getElementById('riskiest-list');
+    riskiestEl.innerHTML = '';
+    riskiest.forEach(p => riskiestEl.appendChild(buildRow(p)));
+    const safestEl = document.getElementById('safest-list');
+    safestEl.innerHTML = '';
+    safest.forEach(p => safestEl.appendChild(buildRow(p)));
+  }
+
+  function renderStatSummary() {
+    if (!SAFETY_DATA || !SAFETY_DATA.places) return;
+    const n = SAFETY_DATA.places.length;
+    const totalIncidents = SAFETY_DATA.places.reduce((s, p) => s + p.total_incidents, 0);
+    const avgScore = (SAFETY_DATA.places.reduce((s, p) => s + p.safety_score, 0) / n).toFixed(1);
+    document.getElementById('stat-summary').innerHTML = `
+      <div><b>${n}</b> localities mapped</div>
+      <div><b>${totalIncidents}</b> incidents analysed</div>
+      <div><b>${avgScore}</b> avg. safety score</div>
+    `;
+  }
+
+  function highlightInSidebar(place) {
+    map.map.flyTo([place.lat, place.lon], 15, { duration: 0.6 });
+  }
+
+  initMap();
+</script>
+
+</body>
+</html>

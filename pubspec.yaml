@@ -46,6 +46,9 @@ dependencies:
   url_launcher: ^6.3.1
   latlong2: ^0.9.1
   flutter_app_name: ^0.1.1
+  noise_meter: ^5.0.0
+  permission_handler: ^12.0.3
+  speech_to_text: ^7.0.0
 
   http: any
 flutter_app_name:
@@ -100,6 +103,7 @@ flutter:
     - assets/safe_place/hospital_place.png
     - assets/safe_place/hotel_place.png
     - assets/safe_place/police_place.png
+    - nagpur_safety_module/output/safety_scores.json
     # If you have subdirectories in assets, you might want to include them explicitly
     # - assets/icons/
     # - assets/backgrounds/

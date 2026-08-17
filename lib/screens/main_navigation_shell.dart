@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:safe/screens/emergency_screen.dart';
 import 'package:safe/screens/feed_screen.dart';
 import 'package:safe/screens/home_screen.dart';
 import 'package:safe/screens/location_screen.dart';
-import 'package:safe/screens/emergency_screen.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/contacts/contacts_screen.dart';
 
@@ -17,31 +17,34 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
+  // Initial App Entry: Route Safety & Source-Destination Finder (Photo 1 & 2 UI/UX)
   final List<Widget> _pages = const [
+    LocationScreen(),
     HomeScreen(),
     EmergencyScreen(),
-    LocationScreen(),
     ContactsScreen(),
     FeedScreen(),
   ];
 
   final List<_NavItemData> _navItems = const [
+    _NavItemData(icon: Icons.map_rounded, label: 'Route Safety'),
     _NavItemData(icon: Icons.shield_rounded, label: 'Dashboard'),
     _NavItemData(icon: Icons.local_police_rounded, label: 'Emergency'),
-    _NavItemData(icon: Icons.map_rounded, label: 'Location'),
     _NavItemData(icon: Icons.people_alt_rounded, label: 'Contacts'),
     _NavItemData(icon: Icons.auto_awesome_rounded, label: 'Feed'),
   ];
 
   void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-    );
+    if (index >= 0 && index < _pages.length) {
+      setState(() {
+        _currentIndex = index;
+      });
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
@@ -60,7 +63,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         ),
         child: PageView(
           controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(), // tab-driven navigation
+          physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (index) {
             setState(() {
               _currentIndex = index;

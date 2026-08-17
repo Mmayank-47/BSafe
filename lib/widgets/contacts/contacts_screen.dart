@@ -152,7 +152,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         ),
                       ),
                       Text(
-                        'Emergency SMS & Alert Recipients',
+                        'Emergency Alert Recipients',
                         style: GoogleFonts.outfit(
                           fontSize: 14,
                           color: AppTheme.primaryPurple,

@@ -1,0 +1,1520 @@
+{
+  "generated_from": "nagpur_crime_dataset_synthetic_1000.csv",
+  "city": "Nagpur",
+  "score_meaning": "0 = least safe, 100 = safest",
+  "place_count": 63,
+  "places": [
+    {
+      "place": "Jaitala",
+      "lat": 21.16,
+      "lon": 79.025,
+      "safety_score": 100.0,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 5,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Gambling",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Chaoni",
+      "lat": 21.167,
+      "lon": 79.078,
+      "safety_score": 93.9,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Cybercrime (OTP/Loan App Fraud)",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Gambling",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Rajendra Nagar",
+      "lat": 21.145,
+      "lon": 79.06,
+      "safety_score": 92.5,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cattle Theft",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Hawrapeth",
+      "lat": 21.152,
+      "lon": 79.102,
+      "safety_score": 91.5,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Indora",
+      "lat": 21.17,
+      "lon": 79.095,
+      "safety_score": 85.5,
+      "risk_tier": "Very Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Suyog Nagar",
+      "lat": 21.14,
+      "lon": 79.12,
+      "safety_score": 78.3,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 13,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Subhash Nagar",
+      "lat": 21.135,
+      "lon": 79.1,
+      "safety_score": 77.9,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 9,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Bhandewadi",
+      "lat": 21.125,
+      "lon": 79.135,
+      "safety_score": 68.9,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 0,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Vayusena Nagar",
+      "lat": 21.1,
+      "lon": 79.05,
+      "safety_score": 65.1,
+      "risk_tier": "Safe",
+      "kmeans_tier": "Very Safe",
+      "total_incidents": 7,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Drug Trafficking",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Yashodhara Nagar",
+      "lat": 21.135,
+      "lon": 79.125,
+      "safety_score": 62.9,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 13,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Mominpura",
+      "lat": 21.16,
+      "lon": 79.105,
+      "safety_score": 56.2,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 11,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Wadi",
+      "lat": 21.165,
+      "lon": 79.03,
+      "safety_score": 56.2,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Assault",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Jaripatka",
+      "lat": 21.18,
+      "lon": 79.1,
+      "safety_score": 55.5,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 16,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Gaddi Godam",
+      "lat": 21.158,
+      "lon": 79.105,
+      "safety_score": 54.9,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 16,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "MIDC",
+      "lat": 21.11,
+      "lon": 79.065,
+      "safety_score": 54.6,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Kalyan Nagar",
+      "lat": 21.16,
+      "lon": 79.125,
+      "safety_score": 54.1,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 18,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Sakkardara",
+      "lat": 21.12,
+      "lon": 79.12,
+      "safety_score": 52.6,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 17,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cattle Theft",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Khapri",
+      "lat": 21.06,
+      "lon": 79.05,
+      "safety_score": 51.8,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Beltarodi",
+      "lat": 21.087,
+      "lon": 79.053,
+      "safety_score": 50.9,
+      "risk_tier": "Moderate",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 21,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Civil Lines",
+      "lat": 21.155,
+      "lon": 79.082,
+      "safety_score": 48.6,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 18,
+      "high_severity_count": 1,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Kapil Nagar",
+      "lat": 21.12,
+      "lon": 79.14,
+      "safety_score": 47.5,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 19,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Pipla",
+      "lat": 21.07,
+      "lon": 79.11,
+      "safety_score": 46.4,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 14,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Kalmeshwar",
+      "lat": 21.23,
+      "lon": 78.92,
+      "safety_score": 46.2,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 10,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Pratap Nagar",
+      "lat": 21.13,
+      "lon": 79.06,
+      "safety_score": 44.9,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 17,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Manish Nagar",
+      "lat": 21.115,
+      "lon": 79.048,
+      "safety_score": 44.5,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 20,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Hudkeshwar",
+      "lat": 21.095,
+      "lon": 79.035,
+      "safety_score": 43.2,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 12,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Ashok Nagar",
+      "lat": 21.135,
+      "lon": 79.095,
+      "safety_score": 42.2,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 10,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Kotwali",
+      "lat": 21.152,
+      "lon": 79.108,
+      "safety_score": 41.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 15,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Robbery",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Mankapur",
+      "lat": 21.185,
+      "lon": 79.07,
+      "safety_score": 41.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 7,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Gandhinagar",
+      "lat": 21.11,
+      "lon": 79.07,
+      "safety_score": 41.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cybercrime (OTP/Loan App Fraud)",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Wardhaman Nagar",
+      "lat": 21.165,
+      "lon": 79.12,
+      "safety_score": 40.8,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 15,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Bajaj Nagar",
+      "lat": 21.1225,
+      "lon": 79.057,
+      "safety_score": 39.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 17,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Gokulpeth",
+      "lat": 21.143,
+      "lon": 79.073,
+      "safety_score": 37.4,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Khaparkheda",
+      "lat": 21.28,
+      "lon": 79.0,
+      "safety_score": 36.7,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Risky",
+      "total_incidents": 6,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Eve Teasing / Harassment",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Kidnapping",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Sadar",
+      "lat": 21.158,
+      "lon": 79.078,
+      "safety_score": 36.4,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 23,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 6
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Tehsil",
+      "lat": 21.15,
+      "lon": 79.108,
+      "safety_score": 36.3,
+      "risk_tier": "Risky",
+      "kmeans_tier": "Safe",
+      "total_incidents": 18,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cybercrime (OTP/Loan App Fraud)",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Hingna",
+      "lat": 21.115,
+      "lon": 79.01,
+      "safety_score": 34.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Safe",
+      "total_incidents": 19,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Ravi Nagar",
+      "lat": 21.13,
+      "lon": 79.068,
+      "safety_score": 34.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 26,
+      "high_severity_count": 2,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Gitti Khadan",
+      "lat": 21.175,
+      "lon": 79.085,
+      "safety_score": 34.4,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 9,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Bajeria",
+      "lat": 21.159,
+      "lon": 79.117,
+      "safety_score": 34.4,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Safe",
+      "total_incidents": 19,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Nandanvan",
+      "lat": 21.12,
+      "lon": 79.115,
+      "safety_score": 34.0,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 21,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Mangalwari",
+      "lat": 21.15,
+      "lon": 79.098,
+      "safety_score": 32.6,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 21,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 6
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Sonegaon",
+      "lat": 21.105,
+      "lon": 79.048,
+      "safety_score": 32.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Itwari",
+      "lat": 21.158,
+      "lon": 79.108,
+      "safety_score": 32.1,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 23,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Ramdaspeth",
+      "lat": 21.142,
+      "lon": 79.078,
+      "safety_score": 27.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 27,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Sitabuldi",
+      "lat": 21.148,
+      "lon": 79.081,
+      "safety_score": 27.1,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Molestation",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Byramji Town",
+      "lat": 21.165,
+      "lon": 79.07,
+      "safety_score": 27.0,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 10,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Robbery",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Gandhibagh",
+      "lat": 21.155,
+      "lon": 79.115,
+      "safety_score": 25.6,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "House Break-in",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Shraddhanand Peth",
+      "lat": 21.15,
+      "lon": 79.098,
+      "safety_score": 23.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Moderate",
+      "total_incidents": 28,
+      "high_severity_count": 3,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 5
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "place": "Trimurti Nagar",
+      "lat": 21.135,
+      "lon": 79.05,
+      "safety_score": 22.2,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Fatal Road Accident (Rash Driving)",
+          "count": 2
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Mahal",
+      "lat": 21.156,
+      "lon": 79.115,
+      "safety_score": 20.8,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 20,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Godhni",
+      "lat": 21.05,
+      "lon": 79.045,
+      "safety_score": 20.5,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 12,
+      "high_severity_count": 4,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Assault",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 1
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Giripeth",
+      "lat": 21.135,
+      "lon": 79.072,
+      "safety_score": 16.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 17,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Attempted Murder",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Ajni",
+      "lat": 21.1265,
+      "lon": 79.087,
+      "safety_score": 13.7,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 24,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Domestic Violence / Cruelty by Relatives",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Friends Colony",
+      "lat": 21.105,
+      "lon": 79.065,
+      "safety_score": 12.1,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 23,
+      "high_severity_count": 5,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Dharampeth",
+      "lat": 21.142,
+      "lon": 79.068,
+      "safety_score": 11.9,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 27,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Besa",
+      "lat": 21.098,
+      "lon": 79.085,
+      "safety_score": 10.7,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 13,
+      "high_severity_count": 6,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Mobile Phone Snatching",
+          "count": 2
+        },
+        {
+          "Crime_Type": "House Break-in",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "place": "Seminary Hills",
+      "lat": 21.17,
+      "lon": 79.062,
+      "safety_score": 7.8,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 7,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Robbery",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Theft",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Imambada",
+      "lat": 21.16,
+      "lon": 79.11,
+      "safety_score": 5.3,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 22,
+      "high_severity_count": 8,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Molestation",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Fatal Road Accident (Rash Driving)",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Motor Vehicle Theft",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Lakadganj",
+      "lat": 21.165,
+      "lon": 79.115,
+      "safety_score": 4.2,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 25,
+      "high_severity_count": 7,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Burglary",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Cyber Fraud",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "place": "Pachpaoli",
+      "lat": 21.165,
+      "lon": 79.108,
+      "safety_score": 2.7,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 24,
+      "high_severity_count": 8,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Theft",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Assault",
+          "count": 3
+        },
+        {
+          "Crime_Type": "Burglary",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Pardi",
+      "lat": 21.175,
+      "lon": 79.06,
+      "safety_score": 1.4,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "High Risk",
+      "total_incidents": 27,
+      "high_severity_count": 7,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Chain Snatching",
+          "count": 5
+        },
+        {
+          "Crime_Type": "Robbery",
+          "count": 4
+        },
+        {
+          "Crime_Type": "Fraud",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "place": "Ganeshpeth",
+      "lat": 21.148,
+      "lon": 79.085,
+      "safety_score": 0.0,
+      "risk_tier": "High Risk",
+      "kmeans_tier": "Risky",
+      "total_incidents": 16,
+      "high_severity_count": 9,
+      "top_crime_types": [
+        {
+          "Crime_Type": "Fatal Road Accident (Rash Driving)",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Kidnapping",
+          "count": 2
+        },
+        {
+          "Crime_Type": "Molestation",
+          "count": 2
+        }
+      ]
+    }
+  ]
+}

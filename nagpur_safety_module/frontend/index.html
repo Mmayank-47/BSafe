@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nagpur Safety Map — Dispatch View</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<link rel="stylesheet" href="safety-map.css" />
+
+<style>
+  :root {
+    --bg-base: #F8FAFC;
+    --bg-panel: #FFFFFF;
+    --bg-panel-2: #F1F5F9;
+    --border: #E2E8F0;
+    --text-primary: #0F172A;
+    --text-muted: #64748B;
+    --accent-blue: #2563EB;
+    --accent-blue-soft: #DBEAFE;
+    --safety-green: #16A34A;
+    --safety-green-soft: #DCFCE7;
+    --warning-amber: #F59E0B;
+    --warning-amber-soft: #FEF3C7;
+    --emergency-red: #DC2626;
+    --emergency-red-soft: #FEE2E2;
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: var(--bg-base); }
+  body { font-family: var(--font-body); color: var(--text-primary); }
+
+  #app { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+  #safety-map { position: absolute; inset: 0; }
+
+  .leaflet-container { background: var(--bg-base); }
+
+  /* ---------- floating panels ---------- */
+  .panel {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+  }
+
+  .title-panel {
+    position: absolute; top: 18px; left: 18px; z-index: 500;
+    padding: 16px 20px; max-width: 320px;
+  }
+  .title-panel .eyebrow {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em;
+    color: var(--accent-blue); text-transform: uppercase; margin-bottom: 6px; font-weight: 600;
+  }
+  .title-panel h1 {
+    font-family: var(--font-display); font-size: 22px; margin: 0 0 6px 0;
+    letter-spacing: -0.01em; line-height: 1.15; color: #0F172A;
+  }
+  .title-panel p {
+    font-size: 12.5px; color: var(--text-muted); margin: 0; line-height: 1.5;
+  }
+
+  .sidebar {
+    position: absolute; top: 18px; right: 18px; bottom: 18px; z-index: 500;
+    width: 280px; padding: 18px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .sidebar-section-title {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-muted); margin: 0 0 10px 0;
+  }
+
+  /* gauge legend */
+  .gauge {
+    display: flex; gap: 12px; align-items: stretch;
+  }
+  .gauge-bar {
+    width: 14px; border-radius: 7px;
+    background: linear-gradient(to top, #DC2626 0%, #EA580C 25%, #F59E0B 50%, #4ADE80 75%, #16A34A 100%);
+    flex-shrink: 0;
+  }
+  .gauge-labels {
+    display: flex; flex-direction: column; justify-content: space-between;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  }
+  .gauge-labels span:first-child { color: var(--safety-green); font-weight: 600; }
+  .gauge-labels span:last-child { color: var(--emergency-red); font-weight: 600; }
+
+  /* tier filter chips */
+  .tier-chips { display: flex; flex-direction: column; gap: 6px; }
+  .tier-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-panel-2); cursor: pointer; font-size: 12.5px;
+    color: var(--text-primary); transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .tier-chip:hover { border-color: var(--accent-blue); }
+  .tier-chip.active { border-color: var(--accent-blue); background: #EFF6FF; font-weight: 500; }
+  .tier-chip .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tier-chip .count {
+    margin-left: auto; font-family: var(--font-mono); color: var(--text-muted); font-size: 11px;
+  }
+
+  /* ranked list */
+  .rank-list { display: flex; flex-direction: column; gap: 6px; }
+  .rank-row {
+    display: flex; align-items: center; gap: 8px; font-size: 12px;
+    padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  }
+  .rank-row:hover { background: var(--bg-panel-2); }
+  .rank-row .swatch { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .rank-row .name { flex: 1; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-row .val { font-family: var(--font-mono); color: var(--text-muted); font-size: 11px; }
+
+  .stat-summary {
+    display: flex; flex-direction: column; gap: 2px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  }
+  .stat-summary b { color: #0F172A; font-size: 13px; }
+
+  .disclaimer {
+    position: absolute; bottom: 10px; left: 18px; z-index: 500;
+    font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.92); padding: 5px 9px; border-radius: 6px;
+    max-width: 480px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  }
+
+  @media (max-width: 720px) {
+    .sidebar { width: 220px; }
+    .title-panel { max-width: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="safety-map"></div>
+
+  <div class="title-panel panel">
+    <div class="eyebrow">Nagpur &middot; Safety Intelligence</div>
+    <h1>Neighbourhood Safety Map</h1>
+    <p>Composite safety score per locality, derived from weighted crime severity, type, recency, and enforcement signals. 100 = safest, 0 = least safe.</p>
+  </div>
+
+  <div class="sidebar panel">
+    <div>
+      <div class="sidebar-section-title">Safety Scale</div>
+      <div class="gauge">
+        <div class="gauge-bar"></div>
+        <div class="gauge-labels">
+          <span>100 &middot; Very Safe</span>
+          <span style="margin-top:auto"></span>
+          <span>0 &middot; High Risk</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Filter by Tier</div>
+      <div class="tier-chips" id="tier-chips"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Least Safe (Top 5)</div>
+      <div class="rank-list" id="riskiest-list"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Safest (Top 5)</div>
+      <div class="rank-list" id="safest-list"></div>
+    </div>
+
+    <div>
+      <div class="sidebar-section-title">Dataset</div>
+      <div class="stat-summary" id="stat-summary"></div>
+    </div>
+  </div>
+
+  <div class="disclaimer">Synthetic dataset — for ML/MVP demonstration only, not real incident data.</div>
+</div>
+
+<script src="safety-map.js"></script>
+<script>
+  let SAFETY_DATA = null;
+
+  const map = new SafetyMap('safety-map', {
+    center: [21.1458, 79.0882],
+    zoom: 12,
+    onMarkerClick: (place) => highlightInSidebar(place),
+  });
+
+  const TIER_COLORS = {
+    "Very Safe": "#16A34A",
+    "Safe": "#4ADE80",
+    "Moderate": "#F59E0B",
+    "Risky": "#EA580C",
+    "High Risk": "#DC2626",
+  };
+
+  async function initMap() {
+    try {
+      if (typeof __SAFETY_DATA_PLACEHOLDER__ !== "undefined") {
+        SAFETY_DATA = __SAFETY_DATA_PLACEHOLDER__;
+      }
+    } catch (e) {
+      SAFETY_DATA = null;
+    }
+
+    if (!SAFETY_DATA) {
+      try {
+        SAFETY_DATA = await map.loadFromUrl('../output/safety_scores.json');
+      } catch (err) {
+        console.warn("Relative fetch failed, trying local endpoint...", err);
+        try {
+          SAFETY_DATA = await map.loadFromUrl('/api/safety-scores');
+        } catch (e2) {
+          console.error("Could not load safety data automatically.", e2);
+          return;
+        }
+      }
+    } else {
+      map.loadData(SAFETY_DATA);
+    }
+
+    map.fitToMarkers();
+    renderTierChips();
+    renderRankLists();
+    renderStatSummary();
+  }
+
+  function renderTierChips() {
+    if (!SAFETY_DATA || !SAFETY_DATA.places) return;
+    const container = document.getElementById('tier-chips');
+    container.innerHTML = '';
+    const tierOrder = ["Very Safe", "Safe", "Moderate", "Risky", "High Risk"];
+    const counts = {};
+    SAFETY_DATA.places.forEach(p => counts[p.risk_tier] = (counts[p.risk_tier] || 0) + 1);
+
+    let active = null;
+    tierOrder.forEach(tier => {
+      if (!(tier in counts)) return;
+      const chip = document.createElement('div');
+      chip.className = 'tier-chip';
+      chip.innerHTML = `<span class="dot" style="background:${TIER_COLORS[tier]}"></span>${tier}<span class="count">${counts[tier]}</span>`;
+      chip.onclick = () => {
+        if (active === tier) {
+          active = null;
+          chip.classList.remove('active');
+          map.setTierFilter(null);
+          document.querySelectorAll('.tier-chip').forEach(c => c.classList.remove('active'));
+        } else {
+          active = tier;
+          document.querySelectorAll('.tier-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          map.setTierFilter(tier);
+        }
+      };
+      container.appendChild(chip);
+    });
+  }
+
+  function renderRankLists() {
+    if (!SAFETY_DATA || !SAFETY_DATA.places) return;
+    const sorted = [...SAFETY_DATA.places].sort((a, b) => a.safety_score - b.safety_score);
+    const riskiest = sorted.slice(0, 5);
+    const safest = sorted.slice(-5).reverse();
+
+    const buildRow = (p) => {
+      const row = document.createElement('div');
+      row.className = 'rank-row';
+      row.innerHTML = `<span class="swatch" style="background:${SafetyMap.scoreToColor(p.safety_score)}"></span>
+                        <span class="name">${p.place}</span>
+                        <span class="val">${p.safety_score.toFixed(1)}</span>`;
+      row.onclick = () => {
+        map.map.flyTo([p.lat, p.lon], 15, { duration: 0.6 });
+      };
+      return row;
+    };
+
+    const riskiestEl = document.getElementById('riskiest-list');
+    riskiestEl.innerHTML = '';
+    riskiest.forEach(p => riskiestEl.appendChild(buildRow(p)));
+    const safestEl = document.getElementById('safest-list');
+    safestEl.innerHTML = '';
+    safest.forEach(p => safestEl.appendChild(buildRow(p)));
+  }
+
+  function renderStatSummary() {
+    if (!SAFETY_DATA || !SAFETY_DATA.places) return;
+    const n = SAFETY_DATA.places.length;
+    const totalIncidents = SAFETY_DATA.places.reduce((s, p) => s + p.total_incidents, 0);
+    const avgScore = (SAFETY_DATA.places.reduce((s, p) => s + p.safety_score, 0) / n).toFixed(1);
+    document.getElementById('stat-summary').innerHTML = `
+      <div><b>${n}</b> localities mapped</div>
+      <div><b>${totalIncidents}</b> incidents analysed</div>
+      <div><b>${avgScore}</b> avg. safety score</div>
+    `;
+  }
+
+  function highlightInSidebar(place) {
+    map.map.flyTo([place.lat, place.lon], 15, { duration: 0.6 });
+  }
+
+  initMap();
+</script>
+
+</body>
+</html>

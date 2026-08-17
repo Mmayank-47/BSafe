@@ -1,0 +1,73 @@
+/* safety-map.css
+   Drop-in styles for the SafetyMap widget's popups/tooltips (Light Theme).
+   Panel/legend/dashboard chrome for the demo lives in index.html's <style>
+   block so it's easy to strip out if you're only embedding the raw map. */
+
+.leaflet-popup-content-wrapper {
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+.leaflet-popup-tip {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+}
+.leaflet-popup-content {
+  margin: 14px 16px;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+.safety-popup h4 {
+  margin: 0 0 6px 0;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  color: #0F172A;
+}
+.safety-popup-score {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.safety-popup-tier {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748B;
+  margin: 2px 0 10px 0;
+}
+.safety-popup-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  color: #334155;
+  margin-bottom: 8px;
+}
+.safety-popup-crimes {
+  margin: 8px 0 0 0;
+  padding: 8px 0 0 0;
+  border-top: 1px dashed #E2E8F0;
+  list-style: none;
+  font-size: 12.5px;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.leaflet-tooltip {
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid #CBD5E1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  padding: 3px 7px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.leaflet-tooltip-top:before {
+  border-top-color: #CBD5E1;
+}

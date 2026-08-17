@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/screens/duress_mask_screen.dart';
 import 'package:safe/screens/sos_screen.dart';
+import 'package:safe/screens/nagpur_safety_screen.dart';
 import 'package:safe/services/agent_api_service.dart';
 import 'package:safe/services/edge_audio_engine.dart';
 import 'package:safe/services/mesh_network_service.dart';
+import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
 
@@ -20,14 +22,18 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final EdgeAudioEngine _audioEngine = EdgeAudioEngine();
   final MeshNetworkService _meshService = MeshNetworkService();
+  final NagpurSafetyService _safetyService = NagpurSafetyService();
+  LocalityMatchResult? _matchedLocality;
   double _currentDb = 48.0;
   final TextEditingController _pinController = TextEditingController();
   StreamSubscription<double>? _decibelSubscription;
+  StreamSubscription<String>? _hotwordSubscription;
 
   @override
   void initState() {
     super.initState();
     _audioEngine.startEngine();
+    _loadNagpurSafety();
     _decibelSubscription = _audioEngine.decibelStream.listen((dbLevel) {
       if (mounted) {
         setState(() {
@@ -35,11 +41,39 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     });
+    _hotwordSubscription = _audioEngine.hotwordStream.listen((hotword) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '🚨 VOICE TRIGGER ACTIVATED: $hotword',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            backgroundColor: AppTheme.accentRose,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (ctx) => const AlertMessageScreen()),
+        );
+      }
+    });
+  }
+
+  Future<void> _loadNagpurSafety() async {
+    await _safetyService.loadSafetyScores();
+    if (mounted) {
+      setState(() {
+        _matchedLocality = _safetyService.getNearestLocality(21.1458, 79.0882);
+      });
+    }
   }
 
   @override
   void dispose() {
     _decibelSubscription?.cancel();
+    _hotwordSubscription?.cancel();
     _pinController.dispose();
     super.dispose();
   }
@@ -252,41 +286,73 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'Route Safety Index',
-                        style: GoogleFonts.outfit(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 14,
+                      InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => const NagpurSafetyScreen(),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _matchedLocality != null
+                                      ? 'Nagpur Locality: ${_matchedLocality!.locality.place}'
+                                      : 'Route Safety Index',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Colors.white70,
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  _matchedLocality != null
+                                      ? '${_matchedLocality!.locality.safetyScore.toStringAsFixed(1)} / 100'
+                                      : '85.5 / 100',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (_matchedLocality?.locality.safetyScore ?? 85) >= 60
+                                        ? AppTheme.accentMint.withValues(alpha: 0.3)
+                                        : AppTheme.accentRose.withValues(alpha: 0.4),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    (_matchedLocality?.locality.riskTier ?? 'VERY SAFE').toUpperCase(),
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '8.5 / 10',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentMint.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'LOW RISK ZONE',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
