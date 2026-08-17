@@ -20,11 +20,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
   final SafetyAuditService _auditService = SafetyAuditService();
 
   int _selectedTab = 0; // 0: Contribute, 1: Timeline
-  int _userPoints = 63;
+  int _userPoints = 18;
   int _totalContributeActions = 5;
   int _userLevel = 1;
   int _rateNearbyCount = 2;
-  int _rateNearbyPoints = 50;
+  int _rateNearbyPoints = 10;
 
   bool _isSubmitting = false;
   String _selectedLocalityName = 'Sitabuldi';
@@ -408,7 +408,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                         ),
                         icon: const Icon(Icons.stars_rounded, color: Colors.white, size: 24),
                         label: Text(
-                          'Submit Audit & Claim +50 Pts 🎁',
+                          'Submit Audit & Claim +5 Pts 🎁',
                           style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                       ),
@@ -486,10 +486,10 @@ class _ContributionScreenState extends State<ContributionScreen> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _userPoints += 50;
+          _userPoints += 5;
           _totalContributeActions += 1;
           _rateNearbyCount += 1;
-          _rateNearbyPoints += 50;
+          _rateNearbyPoints += 5;
           if (_userPoints >= 100 && _userLevel == 1) {
             _userLevel = 2;
           }
@@ -500,7 +500,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
           _attachedPhotoName = null;
         });
         Fluttertoast.showToast(
-          msg: "🎉 Audit Submitted! +50 Pts Added to Profile!",
+          msg: "🎉 Audit Submitted! +5 Pts Added to Profile!",
           toastLength: Toast.LENGTH_LONG,
           backgroundColor: const Color(0xFF10B981),
         );
@@ -781,7 +781,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                       ),
                       icon: const Icon(Icons.add_location_alt_rounded, color: Colors.white, size: 26),
                       label: Text(
-                        '➕ Make Contribution (+50 Pts)',
+                        '➕ Make Contribution (+5 Pts)',
                         style: GoogleFonts.outfit(
                           color: Colors.white,
                           fontSize: 17,
@@ -916,7 +916,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: AppTheme.primaryPurple, borderRadius: BorderRadius.circular(12)),
-            child: Text('+50 Pts', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+            child: Text('+5 Pts', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
           ),
         ],
       ),
