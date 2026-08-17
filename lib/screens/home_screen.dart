@@ -13,6 +13,7 @@ import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -32,6 +33,11 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<double>? _decibelSubscription;
   StreamSubscription<String>? _hotwordSubscription;
   StreamSubscription<String>? _auditSubscription;
+  StreamSubscription<Position>? _homePositionSubscription;
+
+  double? _liveLat;
+  double? _liveLon;
+  String _liveAddress = "Locating live GPS...";
 
   int _escalationAttempt = 1;
   Timer? _escalationTimer;
@@ -64,15 +70,76 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadNagpurSafety() async {
     await _safetyService.loadSafetyScores();
+    await _fetchLiveGPS();
+  }
+
+  Future<void> _fetchLiveGPS() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+
+      Position pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 4),
+        ),
+      );
+      _updateLiveLocation(pos);
+    } catch (_) {
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) {
+          _updateLiveLocation(last);
+        }
+      } catch (_) {}
+    }
+
+    _homePositionSubscription?.cancel();
+    _homePositionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 50,
+      ),
+    ).listen(_updateLiveLocation);
+  }
+
+  void _updateLiveLocation(Position pos) async {
+    _liveLat = pos.latitude;
+    _liveLon = pos.longitude;
+    try {
+      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final sub = p.subLocality ?? '';
+        final loc = p.locality ?? '';
+        final city = sub.isNotEmpty ? '$sub, $loc' : loc;
+        if (mounted) {
+          setState(() {
+            _liveAddress = city.isNotEmpty
+                ? city
+                : "${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}";
+          });
+        }
+      }
+    } catch (_) {}
+
     if (mounted) {
       setState(() {
-        _matchedLocality = _safetyService.getNearestLocality(21.1458, 79.0882);
+        _matchedLocality = _safetyService.getNearestLocality(pos.latitude, pos.longitude);
       });
     }
   }
 
   @override
   void dispose() {
+    _homePositionSubscription?.cancel();
     _escalationTimer?.cancel();
     _auditSubscription?.cancel();
     _decibelSubscription?.cancel();
@@ -326,8 +393,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _executeEmergencyCallAndSms(String reason) async {
     const phone = '9109750185';
+    final lat = _liveLat ?? 21.1458;
+    final lon = _liveLon ?? 79.0882;
     final message = Uri.encodeComponent(
-      '🚨 EMERGENCY BSAFE ALERT! $reason Live GPS Location: https://maps.google.com/?q=21.1458,79.0882 Helpline: 9109750185',
+      '🚨 EMERGENCY BSAFE ALERT! $reason Live GPS Location: https://maps.google.com/?q=$lat,$lon Helpline: 9109750185',
     );
 
     final smsUri = Uri.parse('sms:$phone?body=$message');
@@ -792,12 +861,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  _matchedLocality != null
-                                      ? 'Nagpur Locality: ${_matchedLocality!.locality.place}'
-                                      : 'Route Safety Index',
+                                  _liveAddress.isNotEmpty && _liveAddress != 'Locating live GPS...'
+                                      ? '📍 Live: $_liveAddress'
+                                      : (_matchedLocality != null
+                                          ? '📍 Live Area: ${_matchedLocality!.locality.place}'
+                                          : '📍 Locating live GPS...'),
                                   style: GoogleFonts.outfit(
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                    fontSize: 14,
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),

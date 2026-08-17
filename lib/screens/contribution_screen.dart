@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:safe/models/safety_audit_models.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/services/safety_audit_service.dart';
@@ -58,8 +59,30 @@ class _ContributionScreenState extends State<ContributionScreen> {
         setState(() {
           _loadLocalityCoordinates();
         });
+        _detectUserLocalityFromGPS();
       }
     });
+  }
+
+  Future<void> _detectUserLocalityFromGPS() async {
+    try {
+      Position pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 3),
+        ),
+      );
+      _selectedLat = pos.latitude;
+      _selectedLng = pos.longitude;
+      final nearest = _nagpurService.getNearestLocality(pos.latitude, pos.longitude);
+      if (nearest != null && mounted) {
+        setState(() {
+          _selectedLocalityName = nearest.locality.place;
+          _selectedLat = nearest.locality.lat;
+          _selectedLng = nearest.locality.lon;
+        });
+      }
+    } catch (_) {}
   }
 
   @override

@@ -222,15 +222,28 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
         throw "Location permission is permanently denied.";
       }
 
-      Position position = await Geolocator.getCurrentPosition();
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 4),
+        ),
+      );
       _updateLocation(position);
       _listenToLocationUpdates();
     } catch (e) {
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last != null) {
+          _updateLocation(last);
+          _listenToLocationUpdates();
+          return;
+        }
+      } catch (_) {}
       setState(() {
         locationMessage = e.toString();
         lat = 21.1458;
         long = 79.0882;
-        address = "Nagpur, Maharashtra, India";
+        address = "Detecting live GPS location...";
         _updateRouteComparison();
       });
     }
@@ -247,23 +260,45 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   }
 
   void _listenToLocationUpdates() {
+    _positionSubscription?.cancel();
     _positionSubscription = Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(distanceFilter: 100))
-        .listen(_updateLocation);
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 20,
+      ),
+    ).listen(_updateLocation);
   }
 
   Future<void> _getAddress(double latitude, double longitude) async {
     try {
       List<Placemark> placemarks =
           await placemarkFromCoordinates(latitude, longitude);
-      setState(() {
-        Placemark place = placemarks.reversed.last;
-        address = "${place.name}, ${place.subLocality}, ${place.locality}";
-      });
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+        final parts = [place.name, place.subLocality, place.locality]
+            .where((p) => p != null && p.isNotEmpty)
+            .toSet()
+            .toList();
+        final addrStr = parts.join(', ');
+        final localArea = (place.subLocality != null && place.subLocality!.isNotEmpty)
+            ? place.subLocality!
+            : (place.locality ?? 'Live Location');
+
+        if (mounted) {
+          setState(() {
+            address = addrStr.isNotEmpty ? addrStr : "Lat: ${latitude.toStringAsFixed(4)}, Lon: ${longitude.toStringAsFixed(4)}";
+            if (_sourceLocalityName == gpsSourceLabel) {
+              _sourceController.text = "$gpsSourceLabel ($localArea)";
+            }
+          });
+        }
+      }
     } catch (e) {
-      setState(() {
-        address = "Nagpur Area, India";
-      });
+      if (mounted) {
+        setState(() {
+          address = "Lat: ${latitude.toStringAsFixed(4)}, Lon: ${longitude.toStringAsFixed(4)}";
+        });
+      }
     }
   }
 

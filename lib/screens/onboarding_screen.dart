@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,12 +11,12 @@ import 'package:safe/widgets/contacts/firebase.dart';
 class SafetyProfile {
   String fullName;
   String age;
-  String homeAddress;
+  String gender;
 
   SafetyProfile({
     this.fullName = '',
     this.age = '',
-    this.homeAddress = '',
+    this.gender = 'Female',
   });
 }
 
@@ -317,25 +316,30 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
   late TextEditingController _ageCtrl;
-  late TextEditingController _addressCtrl;
-  bool _isLocating = false;
+  late String _selectedGender;
+
+  final List<Map<String, dynamic>> _genderOptions = const [
+    {'label': 'Female', 'icon': Icons.female_rounded},
+    {'label': 'Male', 'icon': Icons.male_rounded},
+    {'label': 'Non-Binary', 'icon': Icons.transgender_rounded},
+    {'label': 'Prefer not to say', 'icon': Icons.person_outline_rounded},
+  ];
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.profile.fullName);
     _ageCtrl = TextEditingController(text: widget.profile.age);
-    _addressCtrl = TextEditingController(text: widget.profile.homeAddress);
+    _selectedGender = widget.profile.gender.isNotEmpty ? widget.profile.gender : 'Female';
 
     _nameCtrl.addListener(_sync);
     _ageCtrl.addListener(_sync);
-    _addressCtrl.addListener(_sync);
   }
 
   void _sync() {
     widget.profile.fullName = _nameCtrl.text;
     widget.profile.age = _ageCtrl.text;
-    widget.profile.homeAddress = _addressCtrl.text;
+    widget.profile.gender = _selectedGender;
     setState(() {});
   }
 
@@ -343,24 +347,13 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
   void dispose() {
     _nameCtrl.dispose();
     _ageCtrl.dispose();
-    _addressCtrl.dispose();
     super.dispose();
   }
 
   bool get _isFormValid {
     final name = _nameCtrl.text.trim();
     final age = int.tryParse(_ageCtrl.text.trim()) ?? 0;
-    final address = _addressCtrl.text.trim();
-    return name.isNotEmpty && age >= 1 && age <= 120 && address.isNotEmpty;
-  }
-
-  Future<void> _autofillLocation() async {
-    setState(() => _isLocating = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (mounted) {
-      _addressCtrl.text = 'Civil Lines, Nagpur, Maharashtra 440001';
-      setState(() => _isLocating = false);
-    }
+    return name.isNotEmpty && age >= 1 && age <= 120 && _selectedGender.isNotEmpty;
   }
 
   @override
@@ -510,62 +503,63 @@ class _Step1PersonalDetailsState extends State<Step1PersonalDetails> {
 
                 const SizedBox(height: 18),
 
-                // Home Address
-                _fieldLabel('Home Address', isRequired: true),
-                const SizedBox(height: 6),
-                _buildTextField(
-                  controller: _addressCtrl,
-                  hint: 'Your home or safe location',
-                  icon: Icons.home_outlined,
-                  inputType: TextInputType.streetAddress,
-                  maxLines: 2,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Address is required' : null,
-                  semanticsLabel: 'Home address input',
-                ),
-
-                const SizedBox(height: 10),
-
-                // Auto-fill location button
-                GestureDetector(
-                  onTap: _isLocating ? null : _autofillLocation,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _isLocating
-                            ? const SizedBox(
-                                width: 13,
-                                height: 13,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(0xFF0EA5E9)),
-                              )
-                            : const Icon(Icons.my_location_rounded,
-                                size: 14, color: Color(0xFF0EA5E9)),
-                        const SizedBox(width: 6),
-                        Text(
-                          _isLocating
-                              ? 'Locating…'
-                              : 'Use current location',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0EA5E9),
+                // Gender Selection
+                _fieldLabel('Gender', isRequired: true),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _genderOptions.map((opt) {
+                    final isSelected = _selectedGender == opt['label'];
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedGender = opt['label'] as String;
+                          widget.profile.gender = _selectedGender;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
+                              : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF8B5CF6)
+                                : const Color(0xFFE2E8F0),
+                            width: isSelected ? 1.8 : 1.0,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              opt['icon'] as IconData,
+                              size: 18,
+                              color: isSelected
+                                  ? const Color(0xFF8B5CF6)
+                                  : const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              opt['label'] as String,
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                color: isSelected
+                                    ? const Color(0xFF7C3AED)
+                                    : const Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
             ),
