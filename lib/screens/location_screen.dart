@@ -16,6 +16,7 @@ import 'package:safe/services/safety_audit_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/safety/location_detail_sheet.dart';
 import 'package:safe/widgets/safety/safety_marker_layer.dart';
+import 'package:safe/services/women_safety_mesh_sos_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LocationScreen extends StatefulWidget {
@@ -561,9 +562,19 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   }
 
   Future<void> _sendSMS(String number, String message) async {
-    final Uri url = Uri.parse("sms:+91$number?body=$message");
-    if (!await launchUrl(url)) {
-      Fluttertoast.showToast(msg: "Could not send SMS. Try Again.");
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(number, message);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Auto SMS directly sent to $number!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    } else {
+      final Uri url = Uri.parse("sms:$number?body=${Uri.encodeComponent(message)}");
+      try {
+        await launchUrl(url);
+      } catch (_) {}
     }
   }
 

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/components/custom_button.dart';
 import 'package:safe/screens/location_service.dart';
 import 'package:safe/services/agent_api_service.dart';
+import 'package:safe/services/women_safety_mesh_sos_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -141,19 +142,21 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
 
   Future<void> sendSMS(String number, String message) async {
     const targetNumber = "9109750185";
-    final whatsappUrl = Uri.parse("https://wa.me/91$targetNumber?text=${Uri.encodeComponent(message)}");
-    try {
-      if (await canLaunchUrl(whatsappUrl)) {
-        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-        return;
-      }
-    } catch (_) {}
-
-    final Uri smsUrl = Uri.parse("sms:$targetNumber?body=${Uri.encodeComponent(message)}");
-    try {
-      await launchUrl(smsUrl);
-    } catch (e) {
-      Fluttertoast.showToast(msg: "Offline Base64 Encrypted SMS Triggered to $targetNumber!");
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(targetNumber, message);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Auto SMS directly sent to $targetNumber!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    } else {
+      final whatsappUrl = Uri.parse("https://wa.me/91$targetNumber?text=${Uri.encodeComponent(message)}");
+      try {
+        if (await canLaunchUrl(whatsappUrl)) {
+          await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+        }
+      } catch (_) {}
     }
   }
 

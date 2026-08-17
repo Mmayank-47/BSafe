@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:safe/services/agent_api_service.dart';
 import 'package:safe/services/mesh_network_service.dart';
 import 'package:safe/services/women_safety_mesh_sos_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Dart Service for Hardware Volume Button Combo SOS Trigger (3x Vol Down + 1x Vol Up).
 /// Listens for volume button key sequence events from native Android and dispatches multi-channel SOS alerts.
@@ -83,11 +82,6 @@ class VolumeSosService {
         final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, smsMessage);
         if (sentDirect) {
           debugPrint('✅ Direct background SMS dispatched to trusted contact $phone');
-        } else {
-          final Uri smsUri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(smsMessage)}');
-          if (await canLaunchUrl(smsUri)) {
-            await launchUrl(smsUri);
-          }
         }
       }
     } catch (e) {

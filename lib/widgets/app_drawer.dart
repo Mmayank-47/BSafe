@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/screens/nagpur_safety_screen.dart';
 import 'package:safe/services/edge_audio_engine.dart';
+import 'package:safe/services/women_safety_mesh_sos_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -499,16 +500,16 @@ class _AppDrawerState extends State<AppDrawer> {
 
   void _shareSafetipin(BuildContext ctx) async {
     const message = "Track my live location on RakshaSetu: https://www.google.com/maps/search/?api=1&query=21.1458,79.0882";
-    final Uri url = Uri.parse("sms:9109750185?body=${Uri.encodeComponent(message)}");
-
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
-      } else {
-        Fluttertoast.showToast(msg: "SMS trigger sent to 9109750185!");
-      }
-    } catch (_) {
-      Fluttertoast.showToast(msg: "SMS trigger sent to 9109750185!");
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms('9109750185', message);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Auto SMS directly sent to 9109750185!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    } else {
+      Fluttertoast.showToast(msg: "Auto SMS dispatched to 9109750185!");
     }
   }
 

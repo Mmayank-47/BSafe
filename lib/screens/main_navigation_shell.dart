@@ -14,8 +14,8 @@ import 'package:safe/widgets/smart_wake_gesture_detector.dart';
 import 'dart:async';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:safe/services/shake_sos_service.dart';
+import 'package:safe/services/women_safety_mesh_sos_service.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
@@ -101,16 +101,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       ),
     );
 
-    // 2. Direct Redirect to Emergency Auto SMS
+    // 2. Direct Background Auto SMS (bypasses message app UI send button)
     final smsMessage = '🚨 RED ALERT: SHAKE-TO-SOS DETECTED (2 SHAKES)! Immediate Help Needed!\nLive GPS Location: https://maps.google.com/?q=$lat,$lng\nHelpline: 9109750185';
-    final Uri smsUri = Uri.parse('sms:9109750185?body=${Uri.encodeComponent(smsMessage)}');
-    try {
-      if (await canLaunchUrl(smsUri)) {
-        await launchUrl(smsUri, mode: LaunchMode.externalApplication);
-      } else {
-        await launchUrl(smsUri);
-      }
-    } catch (_) {}
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms('9109750185', smsMessage);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Auto SMS directly sent to 9109750185!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    }
 
     // 3. Open Alert Message Screen (SOS Call Log Vector)
     Navigator.of(context).push(

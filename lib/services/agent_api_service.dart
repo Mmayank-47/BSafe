@@ -116,10 +116,10 @@ class AgentApiService {
     return {
       'incident_id': 'INC_OFFLINE_${DateTime.now().millisecondsSinceEpoch}',
       'status': 'DISPATCHED',
-      'tier': decibelLevel > 70.0 || duressPinUsed ? 'TIER_2' : 'TIER_1',
+      'tier': decibelLevel > 85.0 || duressPinUsed ? 'TIER_2' : 'TIER_1',
       'triage_summary': 'Offline Mesh Fallback Ingested',
       'assigned_responders': [],
-      'ivr_bridge_initiated': decibelLevel > 70.0 || duressPinUsed,
+      'ivr_bridge_initiated': decibelLevel > 85.0 || duressPinUsed,
     };
   }
 

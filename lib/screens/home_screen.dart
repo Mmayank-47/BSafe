@@ -15,6 +15,7 @@ import 'package:safe/widgets/pulse_sos_button.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:safe/services/women_safety_mesh_sos_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -395,14 +396,17 @@ class _HomeScreenState extends State<HomeScreen> {
     const phone = '9109750185';
     final lat = _liveLat ?? 21.1458;
     final lon = _liveLon ?? 79.0882;
-    final message = Uri.encodeComponent(
-      '🚨 EMERGENCY RAKSHASETU ALERT! $reason Live GPS Location: https://maps.google.com/?q=$lat,$lon Helpline: 9109750185',
-    );
+    final message = '🚨 EMERGENCY RAKSHASETU ALERT! $reason Live GPS Location: https://maps.google.com/?q=$lat,$lon Helpline: 9109750185';
 
-    final smsUri = Uri.parse('sms:$phone?body=$message');
-    try {
-      await launchUrl(smsUri);
-    } catch (_) {}
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, message);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Emergency Auto SMS directly sent to $phone!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    }
 
     final telUri = Uri.parse('tel:$phone');
     try {

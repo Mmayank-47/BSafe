@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:safe/services/agent_api_service.dart';
 import 'package:safe/services/mesh_network_service.dart';
 import 'package:safe/services/women_safety_mesh_sos_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Dart Service for Shake-to-SOS Emergency Trigger.
 /// Listens for accelerometer shake events from native Android and dispatches end-to-end SOS messages:
@@ -86,17 +85,6 @@ class ShakeSosService {
         final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, smsMessage);
         if (sentDirect) {
           debugPrint('✅ Direct background SMS dispatched to trusted contact $phone');
-        }
-
-        final Uri smsUri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(smsMessage)}');
-        try {
-          if (await canLaunchUrl(smsUri)) {
-            await launchUrl(smsUri, mode: LaunchMode.externalApplication);
-          } else {
-            await launchUrl(smsUri);
-          }
-        } catch (e) {
-          debugPrint('SMS launch error: $e');
         }
       }
     } catch (e) {
