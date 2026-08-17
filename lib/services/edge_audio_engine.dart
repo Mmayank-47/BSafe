@@ -133,18 +133,20 @@ class EdgeAudioEngine {
 
   void _onSpeechResult(SpeechRecognitionResult result) {
     String words = result.recognizedWords.toLowerCase().trim();
-    debugPrint('[STT Recognized]: $words');
+    debugPrint('[STT Recognized]: $words (Current dB: $_currentDecibelLevel)');
 
-    // ONLY trigger distress signal if a recognized hotword ("help", "bachao", etc.) is matched!
-    for (final word in _distressHotwords) {
-      if (words.contains(word)) {
-        final now = DateTime.now();
-        if (_lastTriggerTime == null || now.difference(_lastTriggerTime!).inSeconds >= 3) {
-          _lastTriggerTime = now;
-          _hotwordStreamController.add('Hotword Detected: "${word.toUpperCase()}" in "$words"');
-          debugPrint('[Edge AI Audio Engine] 🚨 HOTWORD DISTRESS MATCH: $word');
+    // STRICT RULE: BOTH sound level >= 60 dB AND hotword match required!
+    if (_currentDecibelLevel >= 60.0) {
+      for (final word in _distressHotwords) {
+        if (words.contains(word)) {
+          final now = DateTime.now();
+          if (_lastTriggerTime == null || now.difference(_lastTriggerTime!).inSeconds >= 3) {
+            _lastTriggerTime = now;
+            _hotwordStreamController.add('Hotword Detected: "${word.toUpperCase()}" at ${_currentDecibelLevel.toStringAsFixed(1)} dB');
+            debugPrint('[Edge AI Audio Engine] 🚨 HOTWORD DISTRESS MATCH AT ${_currentDecibelLevel}dB: $word');
+          }
+          break;
         }
-        break;
       }
     }
   }
