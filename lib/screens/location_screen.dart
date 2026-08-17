@@ -130,6 +130,8 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
 
   TravelMode _selectedTravelMode = TravelMode.car;
 
+  List<LatLng> _liveRouteWaypoints = [];
+
   void _updateRouteComparison() async {
     final comparison = await _nagpurService.calculateRouteSafetyAsync(
       sourceName: _sourceLocalityName,
@@ -138,11 +140,40 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
       userLon: long,
       travelMode: _selectedTravelMode,
     );
+
+    final waypoints = await _nagpurService.fetchRoutePolyline(
+      comparison.source.lat,
+      comparison.source.lon,
+      comparison.destination.lat,
+      comparison.destination.lon,
+      travelMode: _selectedTravelMode,
+    );
+
     if (mounted) {
       setState(() {
         _routeComparison = comparison;
+        _liveRouteWaypoints = waypoints;
       });
     }
+  }
+
+  LatLng _getSourceCoordinates() {
+    if (_routeComparison != null) {
+      return LatLng(_routeComparison!.source.lat, _routeComparison!.source.lon);
+    }
+    if (_sourceLocalityName != gpsSourceLabel) {
+      final created = _nagpurService.getOrCreateLocality(_sourceLocalityName, DateTime.now().hour);
+      return LatLng(created.lat, created.lon);
+    }
+    return LatLng(lat ?? 21.016, long ?? 78.985);
+  }
+
+  LatLng _getDestinationCoordinates() {
+    if (_routeComparison != null) {
+      return LatLng(_routeComparison!.destination.lat, _routeComparison!.destination.lon);
+    }
+    final created = _nagpurService.getOrCreateLocality(_destLocalityName, DateTime.now().hour);
+    return LatLng(created.lat, created.lon);
   }
 
   void _checkRouteLowestSafetyZone(RouteSafetyComparison comparison) {
@@ -181,16 +212,6 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
         }
       });
     }
-  }
-
-  LatLng _getSourceCoordinates() {
-    if (_sourceLocalityName != gpsSourceLabel) {
-      final match = _nagpurService.searchLocalities(_sourceLocalityName).firstOrNull;
-      if (match != null) {
-        return LatLng(match.lat, match.lon);
-      }
-    }
-    return LatLng(lat ?? 21.1458, long ?? 79.0882);
   }
 
   @override
@@ -309,6 +330,9 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   double _currentTraversingAreaScore = 80.0;
 
   List<LatLng> _generateGoogleMapsWaypoints(double srcLat, double srcLon, double destLat, double destLon) {
+    if (_liveRouteWaypoints.length >= 2) {
+      return _liveRouteWaypoints;
+    }
     final dLat = destLat - srcLat;
     final dLon = destLon - srcLon;
 
@@ -1250,25 +1274,27 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
     final sourceLat = srcCoord.latitude;
     final sourceLon = srcCoord.longitude;
 
-    final destLoc = _routeComparison?.destination;
-    final targetLat = destLoc?.lat ?? 21.155;
-    final targetLon = destLoc?.lon ?? 79.082;
+    final destCoord = _getDestinationCoordinates();
+    final targetLat = destCoord.latitude;
+    final targetLon = destCoord.longitude;
 
     final midLat = (sourceLat + targetLat) / 2;
     final midLon = (sourceLon + targetLon) / 2;
 
-    final polylinePoints = _useSafestRoute
-        ? [
-            LatLng(sourceLat, sourceLon),
-            LatLng(midLat + 0.012, midLon - 0.008),
-            LatLng(midLat - 0.004, midLon + 0.012),
-            LatLng(targetLat, targetLon),
-          ]
-        : [
-            LatLng(sourceLat, sourceLon),
-            LatLng(midLat, midLon),
-            LatLng(targetLat, targetLon),
-          ];
+    final polylinePoints = _liveRouteWaypoints.length >= 2
+        ? _liveRouteWaypoints
+        : (_useSafestRoute
+            ? [
+                LatLng(sourceLat, sourceLon),
+                LatLng(midLat + 0.012, midLon - 0.008),
+                LatLng(midLat - 0.004, midLon + 0.012),
+                LatLng(targetLat, targetLon),
+              ]
+            : [
+                LatLng(sourceLat, sourceLon),
+                LatLng(midLat, midLon),
+                LatLng(targetLat, targetLon),
+              ]);
 
     return Container(
       height: 320,

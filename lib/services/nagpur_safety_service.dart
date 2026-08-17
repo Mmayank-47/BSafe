@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 
 enum TravelMode { car, walk }
 
@@ -715,6 +716,105 @@ class NagpurSafetyService {
       timeOfDayLabel: timeOfDayLabel,
       travelMode: travelMode,
     );
+  }
+
+  Future<List<LatLng>> fetchRoutePolyline(
+    double srcLat,
+    double srcLon,
+    double destLat,
+    double destLon, {
+    TravelMode travelMode = TravelMode.car,
+  }) async {
+    final modePath = travelMode == TravelMode.walk ? 'walking' : 'driving';
+    final googleApiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+
+    if (googleApiKey.isNotEmpty) {
+      try {
+        final modeParam = travelMode == TravelMode.walk ? 'walking' : 'driving';
+        final googleUrl = Uri.parse(
+          'https://maps.googleapis.com/maps/api/directions/json?origin=$srcLat,$srcLon&destination=$destLat,$destLon&mode=$modeParam&key=$googleApiKey',
+        );
+        final response = await http.get(googleUrl).timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          final routes = data['routes'] as List?;
+          if (routes != null && routes.isNotEmpty) {
+            final polyStr = routes[0]['overview_polyline']?['points'] as String?;
+            if (polyStr != null && polyStr.isNotEmpty) {
+              final decoded = _decodePolyline(polyStr);
+              if (decoded.length >= 2) return decoded;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Try OSRM Road Network API
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/$modePath/$srcLon,$srcLat;$destLon,$destLat?overview=full&geometries=geojson',
+      );
+      final response = await http.get(url).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List?;
+        if (routes != null && routes.isNotEmpty) {
+          final geometry = routes[0]['geometry'] as Map<String, dynamic>?;
+          final coords = geometry?['coordinates'] as List?;
+          if (coords != null && coords.isNotEmpty) {
+            final List<LatLng> polyPoints = [];
+            for (final c in coords) {
+              final lon = (c[0] as num).toDouble();
+              final lat = (c[1] as num).toDouble();
+              polyPoints.add(LatLng(lat, lon));
+            }
+            if (polyPoints.length >= 2) return polyPoints;
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback interpolated waypoints
+    final dLat = destLat - srcLat;
+    final dLon = destLon - srcLon;
+    return [
+      LatLng(srcLat, srcLon),
+      LatLng(srcLat + dLat * 0.20 + 0.0016, srcLon + dLon * 0.15 - 0.0014),
+      LatLng(srcLat + dLat * 0.42 + 0.0010, srcLon + dLon * 0.45 + 0.0018),
+      LatLng(srcLat + dLat * 0.68 - 0.0014, srcLon + dLon * 0.70 + 0.0012),
+      LatLng(srcLat + dLat * 0.88 + 0.0006, srcLon + dLon * 0.88 - 0.0005),
+      LatLng(destLat, destLon),
+    ];
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> points = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
   }
 }
 
