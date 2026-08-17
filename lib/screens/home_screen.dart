@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/screens/duress_mask_screen.dart';
 import 'package:safe/screens/sos_screen.dart';
@@ -11,6 +12,7 @@ import 'package:safe/services/mesh_network_service.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -154,11 +156,207 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
+
+  Future<void> _sendEmergencySMSOrWhatsApp() async {
+    const phoneNumber = "9109750185";
+    const message = "🚨 EMERGENCY SOS ALERT from bSafe! I need immediate help at GPS location (21.1458, 79.0882), Sitabuldi, Nagpur. Please send assistance!";
+
+    final whatsappUrl = Uri.parse("https://wa.me/91$phoneNumber?text=${Uri.encodeComponent(message)}");
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+
+    final smsUrl = Uri.parse("sms:$phoneNumber?body=${Uri.encodeComponent(message)}");
+    try {
+      await launchUrl(smsUrl);
+    } catch (_) {
+      await launchUrl(smsUrl, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _buildCentralSOSTrigger(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: PulseSosButton(
+            onTap: () {
+              _sendEmergencySMSOrWhatsApp();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (ctx) => const AlertMessageScreen()),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  int _safetyCheckAttemptCount = 0;
+  Timer? _safetyCheckTimer;
+  int _safetyCheckSecondsRemaining = 5;
+
+  Future<void> _makeEmergencyDirectCall() async {
+    final Uri phoneUri = Uri.parse('tel:9109750185');
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      await launchUrl(phoneUri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _triggerLPatternSafetyCheck() {
+    _sendEmergencySMSOrWhatsApp();
+    _safetyCheckAttemptCount = 1;
+    _startSafetyCheckEscalation();
+  }
+
+  void _startSafetyCheckEscalation() {
+    _safetyCheckSecondsRemaining = 5;
+    _safetyCheckTimer?.cancel();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            _safetyCheckTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (!mounted) {
+                t.cancel();
+                return;
+              }
+              if (_safetyCheckSecondsRemaining > 1) {
+                setDialogState(() {
+                  _safetyCheckSecondsRemaining--;
+                });
+              } else {
+                t.cancel();
+                _safetyCheckTimer = null;
+                Navigator.of(dialogCtx).pop();
+
+                if (_safetyCheckAttemptCount < 3) {
+                  _safetyCheckAttemptCount++;
+                  _startSafetyCheckEscalation();
+                } else {
+                  _sendEmergencySMSOrWhatsApp();
+                  _makeEmergencyDirectCall();
+                  Fluttertoast.showToast(
+                    msg: "🚨 NO RESPONSE AFTER 3 ATTEMPTS! Auto-calling & dispatching live location to 9109750185!",
+                    toastLength: Toast.LENGTH_LONG,
+                  );
+                }
+              }
+            });
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              backgroundColor: const Color(0xFF0F172A),
+              title: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.shield_moon_rounded, color: Color(0xFFEF4444), size: 36),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'ARE YOU SAFE?',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                    ),
+                  ),
+                  Text(
+                    'Gesture Trigger • Attempt $_safetyCheckAttemptCount of 3',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFFFCA5A5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Initial SMS dispatched to 9109750185. Please verify your safety:',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: 70,
+                    height: 70,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFEF4444), width: 3),
+                    ),
+                    child: Text(
+                      '${_safetyCheckSecondsRemaining}s',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actions: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _safetyCheckTimer?.cancel();
+                    _safetyCheckTimer = null;
+                    Navigator.of(dialogCtx).pop();
+                    Fluttertoast.showToast(msg: "🟢 Situation Normal — Safety Confirmed!");
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  label: Text('YES, I\'m Safe', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _safetyCheckTimer?.cancel();
+                    _safetyCheckTimer = null;
+                    Navigator.of(dialogCtx).pop();
+                    _sendEmergencySMSOrWhatsApp();
+                    _makeEmergencyDirectCall();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                  label: Text('NO, Need Help!', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _triggerSimulatedScream() {
     _audioEngine.simulateExtremeScreamSpike(94.2, 'Bachao');
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (ctx) => const AlertMessageScreen()),
-    );
+    _triggerLPatternSafetyCheck();
   }
 
   @override
@@ -180,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'bSafe Engine',
+                          'Safety Audit',
                           style: GoogleFonts.outfit(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
@@ -188,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Text(
-                          'Active Agentic Protection',
+                          'Active Agentic Protection & Audit Engine',
                           style: GoogleFonts.outfit(
                             fontSize: 14,
                             color: AppTheme.primaryPurple,
@@ -361,20 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // Central Animated SOS Trigger
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Center(
-                  child: PulseSosButton(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (ctx) => const AlertMessageScreen()),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
+            _buildCentralSOSTrigger(context),
 
             // Multi-Modal Shortcuts Bar
             SliverPadding(

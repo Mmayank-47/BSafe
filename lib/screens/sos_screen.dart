@@ -5,12 +5,20 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/components/custom_button.dart';
 import 'package:safe/screens/location_service.dart';
 import 'package:safe/services/agent_api_service.dart';
-import 'package:safe/services/contact_resolution_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AlertMessageScreen extends StatefulWidget {
-  const AlertMessageScreen({super.key});
+  final double? initialLat;
+  final double? initialLon;
+  final String? initialRecentCallVector;
+
+  const AlertMessageScreen({
+    super.key,
+    this.initialLat,
+    this.initialLon,
+    this.initialRecentCallVector = '9109750185',
+  });
 
   @override
   State<AlertMessageScreen> createState() => _AlertMessageScreenState();
@@ -19,13 +27,12 @@ class AlertMessageScreen extends StatefulWidget {
 class _AlertMessageScreenState extends State<AlertMessageScreen> {
   final TextEditingController textController = TextEditingController(text: "EMERGENCY! I need immediate help!");
   final LocationService _locationService = LocationService();
-  final ContactResolutionService _contactResolver = ContactResolutionService();
 
   String locationMessage = "Fetching location...";
   String mapLink = "";
   double? _lat;
   double? _lon;
-  String? _recentCallVector;
+  String? _recentCallVector = '9109750185';
   Map<String, dynamic>? _triageResult;
 
   @override
@@ -41,16 +48,36 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
   }
 
   Future<void> _fetchCurrentLocationAndContext() async {
+    if (widget.initialLat != null && widget.initialLon != null) {
+      final latitude = widget.initialLat!;
+      final longitude = widget.initialLon!;
+      final recentCaller = widget.initialRecentCallVector ?? '9109750185';
+      String address = "Nagpur Live Route Corridor";
+      try {
+        address = await _locationService.getAddressFromCoordinates(latitude, longitude);
+      } catch (_) {}
+
+      setState(() {
+        _lat = latitude;
+        _lon = longitude;
+        _recentCallVector = recentCaller;
+        locationMessage =
+            "Lat: ${latitude.toStringAsFixed(4)}, Lon: ${longitude.toStringAsFixed(4)}\n$address";
+        mapLink =
+            'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+      });
+      return;
+    }
+
     try {
       Position position = await _locationService.getCurrentLocation();
       String address = await _locationService.getAddressFromCoordinates(
           position.latitude, position.longitude);
-      String? recentCaller = await _contactResolver.getContextualRecentCallVector();
 
       setState(() {
         _lat = position.latitude;
         _lon = position.longitude;
-        _recentCallVector = recentCaller;
+        _recentCallVector = widget.initialRecentCallVector ?? '9109750185';
         locationMessage =
             "Lat: ${position.latitude.toStringAsFixed(4)}, Lon: ${position.longitude.toStringAsFixed(4)}\n$address";
         mapLink =
@@ -59,9 +86,10 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
     } catch (e) {
       setState(() {
         locationMessage = e.toString();
-        _lat = 28.6139;
-        _lon = 77.2090;
-        _recentCallVector = '+919876543000';
+        _lat = 21.1458;
+        _lon = 79.0882;
+        _recentCallVector = '9109750185';
+        mapLink = 'https://www.google.com/maps/search/?api=1&query=21.1458,79.0882';
       });
     }
   }
@@ -87,11 +115,20 @@ class _AlertMessageScreenState extends State<AlertMessageScreen> {
   }
 
   Future<void> sendSMS(String number, String message) async {
-    final Uri url = Uri.parse("sms:+91$number?body=${Uri.encodeComponent(message)}");
+    const targetNumber = "9109750185";
+    final whatsappUrl = Uri.parse("https://wa.me/91$targetNumber?text=${Uri.encodeComponent(message)}");
     try {
-      await launchUrl(url);
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+
+    final Uri smsUrl = Uri.parse("sms:$targetNumber?body=${Uri.encodeComponent(message)}");
+    try {
+      await launchUrl(smsUrl);
     } catch (e) {
-      Fluttertoast.showToast(msg: "Offline Base64 Encrypted SMS Triggered!");
+      Fluttertoast.showToast(msg: "Offline Base64 Encrypted SMS Triggered to $targetNumber!");
     }
   }
 

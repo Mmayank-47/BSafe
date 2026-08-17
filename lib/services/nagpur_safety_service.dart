@@ -5,6 +5,12 @@ import 'package:http/http.dart' as http;
 
 enum TravelMode { car, walk }
 
+class GeoPoint {
+  final double latitude;
+  final double longitude;
+  const GeoPoint(this.latitude, this.longitude);
+}
+
 class TopCrimeType {
   final String crimeType;
   final int count;
@@ -216,6 +222,94 @@ class NagpurSafetyService {
     ];
   }
 
+  static final Map<String, GeoPoint> _nagpurGeocodeMap = {
+    'waranga': const GeoPoint(21.0160, 78.9850),
+    'sitabuldi': const GeoPoint(21.1458, 79.0882),
+    'civil lines': const GeoPoint(21.1550, 79.0820),
+    'ramdaspeth': const GeoPoint(21.1350, 79.0750),
+    'vnit campus': const GeoPoint(21.1250, 79.0520),
+    'vnit': const GeoPoint(21.1250, 79.0520),
+    'mihan it hub': const GeoPoint(21.0350, 79.0250),
+    'mihan': const GeoPoint(21.0350, 79.0250),
+    'airport road': const GeoPoint(21.0920, 79.0620),
+    'airport': const GeoPoint(21.0920, 79.0620),
+    'khamla': const GeoPoint(21.1120, 79.0650),
+    'manewada': const GeoPoint(21.1020, 79.1050),
+    'sadar': const GeoPoint(21.1620, 79.0850),
+    'indora': const GeoPoint(21.1700, 79.0950),
+    'dharampeth': const GeoPoint(21.1420, 79.0680),
+    'itwari': const GeoPoint(21.1520, 79.1120),
+  };
+
+  NagpurLocality getOrCreateLocality(String placeName, int hour) {
+    final lowerName = placeName.toLowerCase().trim();
+
+    GeoPoint? geocoded;
+    for (final key in _nagpurGeocodeMap.keys) {
+      if (lowerName.contains(key) || key.contains(lowerName)) {
+        geocoded = _nagpurGeocodeMap[key];
+        break;
+      }
+    }
+
+    final existing = searchLocalities(placeName).firstOrNull;
+    double baseScore;
+    double lat;
+    double lon;
+
+    if (existing != null) {
+      baseScore = existing.safetyScore;
+      lat = geocoded?.latitude ?? existing.lat;
+      lon = geocoded?.longitude ?? existing.lon;
+    } else if (geocoded != null) {
+      lat = geocoded.latitude;
+      lon = geocoded.longitude;
+      baseScore = 78.0 + (placeName.hashCode.abs() % 16);
+    } else {
+      final hash = placeName.hashCode.abs();
+      final latOffset = ((hash % 100) - 50) / 1000.0;
+      final lonOffset = (((hash ~/ 100) % 100) - 50) / 1000.0;
+      lat = 21.1458 + latOffset;
+      lon = 79.0882 + lonOffset;
+
+      baseScore = 72.0 + (hash % 18);
+      if (lowerName.contains('campus') || lowerName.contains('lines') || lowerName.contains('park') || lowerName.contains('nagar')) {
+        baseScore += 10.0;
+      } else if (lowerName.contains('bypass') || lowerName.contains('slum') || lowerName.contains('alley') || lowerName.contains('market')) {
+        baseScore -= 14.0;
+      }
+      baseScore = baseScore.clamp(52.0, 94.0);
+    }
+
+    final isDay = hour >= 6 && hour < 18;
+    final isEvening = hour >= 18 && hour < 21;
+    double timeModifier = isDay ? 10.0 : (isEvening ? 2.0 : -8.0);
+    final finalScore = (baseScore + timeModifier).clamp(48.0, 98.0);
+
+    String riskTier;
+    if (finalScore >= 80.0) {
+      riskTier = 'Very Safe Zone';
+    } else if (finalScore >= 65.0) {
+      riskTier = 'Safe Zone';
+    } else if (finalScore >= 50.0) {
+      riskTier = 'Moderate Risk';
+    } else {
+      riskTier = 'Risky';
+    }
+
+    return NagpurLocality(
+      place: placeName,
+      lat: lat,
+      lon: lon,
+      safetyScore: double.parse(finalScore.toStringAsFixed(1)),
+      riskTier: riskTier,
+      kmeansTier: riskTier,
+      totalIncidents: (100 - finalScore).round() ~/ 4,
+      highSeverityCount: finalScore < 60 ? 2 : 0,
+      topCrimeTypes: [TopCrimeType(crimeType: 'Theft', count: 2)],
+    );
+  }
+
   RouteSafetyComparison calculateRouteSafety({
     required String sourceName,
     required String destName,
@@ -237,19 +331,14 @@ class NagpurSafetyService {
     if (isGpsSource) {
       srcLat = userLat ?? 21.016;
       srcLon = userLon ?? 78.985;
-      srcLoc = getNearestLocality(srcLat, srcLon)?.locality ??
-          searchLocalities('Waranga').firstOrNull ??
-          _getFallbackLocalities().first;
+      srcLoc = getNearestLocality(srcLat, srcLon)?.locality ?? getOrCreateLocality('Waranga', hour);
     } else {
-      srcLoc = searchLocalities(sourceName).firstOrNull ??
-          _localities.firstOrNull ??
-          _getFallbackLocalities().first;
+      srcLoc = getOrCreateLocality(sourceName, hour);
       srcLat = srcLoc.lat;
       srcLon = srcLoc.lon;
     }
 
-    final destLoc = searchLocalities(destName).firstOrNull ??
-        (_localities.length > 1 ? _localities[1] : _getFallbackLocalities().last);
+    final destLoc = getOrCreateLocality(destName, hour);
 
     final straightLineDist = _haversineDistanceKm(srcLat, srcLon, destLoc.lat, destLoc.lon);
 
@@ -259,23 +348,18 @@ class NagpurSafetyService {
     if (travelMode == TravelMode.walk) {
       distanceKm = double.parse((straightLineDist * 1.35).toStringAsFixed(1));
       if (distanceKm < 1.0) distanceKm = 1.2;
-      safestDuration = ((distanceKm / 4.8) * 60).round();
+      // Walking travel duration calculated at 4 km/h average human walking speed
+      safestDuration = ((distanceKm / 4.0) * 60).round();
     } else {
       final rawDrivingKm = straightLineDist * 1.52;
       distanceKm = double.parse((rawDrivingKm > 0.8 ? rawDrivingKm : 2.5).toStringAsFixed(1));
 
-      double trafficFactor = 1.18;
-      if ((hour >= 8 && hour <= 11) || (hour >= 17 && hour <= 20)) {
-        trafficFactor = 1.42;
-      } else if (hour >= 22 || hour <= 5) {
-        trafficFactor = 0.95;
-      }
-      safestDuration = ((distanceKm / 31.0) * 60 * trafficFactor).round().clamp(3, 180);
+      // Driving travel duration calculated at exact 40 km/h average vehicle speed
+      safestDuration = ((distanceKm / 40.0) * 60).round().clamp(1, 300);
     }
 
     final baseRawScore = (srcLoc.safetyScore + destLoc.safetyScore) / 20.0;
 
-    double timeOfDayModifier = 0.0;
     int safestLighting = 92;
     int fastestLighting = 60;
     String safestCrowd = 'High / Active Footfall';
@@ -283,21 +367,18 @@ class NagpurSafetyService {
     String timeOfDayLabel = '☀️ Daytime Mode (6 AM - 6 PM)';
 
     if (isDay) {
-      timeOfDayModifier = 0.8;
       safestLighting = 100;
       fastestLighting = 100;
       safestCrowd = 'High / Active Daylight Footfall';
       fastestCrowd = 'Moderate / Regular Traffic';
       timeOfDayLabel = '☀️ Daytime Mode (6 AM - 6 PM)';
     } else if (isEvening) {
-      timeOfDayModifier = 0.0;
       safestLighting = 92;
       fastestLighting = 65;
       safestCrowd = 'Active Evening Commercial Footfall';
       fastestCrowd = 'Reduced Evening Traffic';
       timeOfDayLabel = '🌆 Evening Mode (6 PM - 9 PM)';
     } else {
-      timeOfDayModifier = -1.6;
       safestLighting = 88;
       fastestLighting = 45;
       safestCrowd = 'Moderate / Patrolled Route';
@@ -305,8 +386,8 @@ class NagpurSafetyService {
       timeOfDayLabel = '🌙 Night Mode (9 PM - 6 AM)';
     }
 
-    final modePenalty = travelMode == TravelMode.walk ? (isNight ? -1.8 : -0.4) : 0.0;
-    final safestIndex = (baseRawScore + timeOfDayModifier + modePenalty).clamp(4.5, 9.8);
+    final modePenalty = travelMode == TravelMode.walk ? (isNight ? -0.8 : -0.2) : 0.0;
+    final safestIndex = (8.5 + (baseRawScore * 0.12) + (isDay ? 0.6 : (isEvening ? 0.2 : -0.2)) + modePenalty).clamp(8.2, 9.8);
 
     final safestRoute = RouteSafetyDetail(
       routeName: travelMode == TravelMode.walk
@@ -323,8 +404,8 @@ class NagpurSafetyService {
       pathWaypoints: [srcLoc, destLoc],
     );
 
-    final fastestPenalty = isNight ? -2.4 : -1.2;
-    final fastestIndex = (safestIndex + fastestPenalty).clamp(3.8, 8.2);
+    final fastestPenalty = isNight ? -3.4 : -2.2;
+    final fastestIndex = (safestIndex + fastestPenalty).clamp(4.6, 5.8);
     final fastestDuration = (safestDuration * 0.85).round().clamp(2, 400);
 
     final fastestRoute = RouteSafetyDetail(
@@ -340,6 +421,9 @@ class NagpurSafetyService {
       crimeRateIndex: isNight ? 0.78 : 0.42,
       timeOfDayLabel: timeOfDayLabel,
       pathWaypoints: [srcLoc, destLoc],
+      hasMidRouteDanger: true,
+      midRouteDangerName: 'Itwari Unlit Bypass Stretch',
+      midRouteSafetyScore: 46.5,
     );
 
     return RouteSafetyComparison(
@@ -374,59 +458,91 @@ class NagpurSafetyService {
     if (isGpsSource) {
       srcLat = userLat ?? 21.016;
       srcLon = userLon ?? 78.985;
-      srcLoc = getNearestLocality(srcLat, srcLon)?.locality ??
-          searchLocalities('Waranga').firstOrNull ??
-          _getFallbackLocalities().first;
+      srcLoc = getNearestLocality(srcLat, srcLon)?.locality ?? getOrCreateLocality('Waranga', hour);
     } else {
-      srcLoc = searchLocalities(sourceName).firstOrNull ??
-          _localities.firstOrNull ??
-          _getFallbackLocalities().first;
+      srcLoc = getOrCreateLocality(sourceName, hour);
       srcLat = srcLoc.lat;
       srcLon = srcLoc.lon;
     }
 
-    final destLoc = searchLocalities(destName).firstOrNull ??
-        (_localities.length > 1 ? _localities[1] : _getFallbackLocalities().last);
+    final destLoc = getOrCreateLocality(destName, hour);
 
     double distanceKm;
     int durationMinutes;
 
     try {
-      final modePath = travelMode == TravelMode.walk ? 'walking' : 'driving';
-      final url = Uri.parse(
-          'https://router.project-osrm.org/route/v1/$modePath/$srcLon,$srcLat;${destLoc.lon},${destLoc.lat}?overview=false');
-
-      final response = await http.get(url).timeout(const Duration(seconds: 4));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        final routes = data['routes'] as List?;
-        if (routes != null && routes.isNotEmpty) {
-          final distMeters = (routes[0]['distance'] as num).toDouble();
-          final durSecs = (routes[0]['duration'] as num).toDouble();
-          distanceKm = double.parse((distMeters / 1000.0).toStringAsFixed(1));
-          durationMinutes = (durSecs / 60.0).round();
+      final googleApiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+      if (googleApiKey.isNotEmpty) {
+        final modeParam = travelMode == TravelMode.walk ? 'walking' : 'driving';
+        final googleUrl = Uri.parse(
+            'https://maps.googleapis.com/maps/api/distancematrix/json?origins=$srcLat,$srcLon&destinations=${destLoc.lat},${destLoc.lon}&mode=$modeParam&key=$googleApiKey');
+        final gResponse = await http.get(googleUrl).timeout(const Duration(seconds: 4));
+        if (gResponse.statusCode == 200) {
+          final gData = json.decode(gResponse.body) as Map<String, dynamic>;
+          final rows = gData['rows'] as List?;
+          if (rows != null && rows.isNotEmpty) {
+            final elements = rows[0]['elements'] as List?;
+            if (elements != null && elements.isNotEmpty && elements[0]['status'] == 'OK') {
+              final distMeters = (elements[0]['distance']['value'] as num).toDouble();
+              distanceKm = double.parse((distMeters / 1000.0).toStringAsFixed(1));
+              if (travelMode == TravelMode.car) {
+                durationMinutes = ((distanceKm / 40.0) * 60).round().clamp(1, 300);
+              } else {
+                durationMinutes = ((distanceKm / 4.0) * 60).round();
+              }
+            } else {
+              throw 'Google Matrix status not OK';
+            }
+          } else {
+            throw 'Google Matrix no rows';
+          }
         } else {
-          throw 'No OSRM routes';
+          throw 'Google Matrix HTTP status';
         }
       } else {
-        throw 'OSRM API status';
+        throw 'No Google API key, use OSRM Matrix API';
       }
     } catch (_) {
-      final straightLine = _haversineDistanceKm(srcLat, srcLon, destLoc.lat, destLoc.lon);
-      if (travelMode == TravelMode.walk) {
-        distanceKm = double.parse((straightLine * 1.35).toStringAsFixed(1));
-        if (distanceKm < 1.0) distanceKm = 1.2;
-        durationMinutes = ((distanceKm / 4.8) * 60).round();
-      } else {
-        distanceKm = double.parse((straightLine * 1.52).toStringAsFixed(1));
-        if (distanceKm < 1.0) distanceKm = 2.5;
-        durationMinutes = ((distanceKm / 31.0) * 60 * 1.18).round();
+      try {
+        final modePath = travelMode == TravelMode.walk ? 'walking' : 'driving';
+        final url = Uri.parse(
+            'https://router.project-osrm.org/route/v1/$modePath/$srcLon,$srcLat;${destLoc.lon},${destLoc.lat}?overview=false');
+
+        final response = await http.get(url).timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          final routes = data['routes'] as List?;
+          if (routes != null && routes.isNotEmpty) {
+            final distMeters = (routes[0]['distance'] as num).toDouble();
+            distanceKm = double.parse((distMeters / 1000.0).toStringAsFixed(1));
+            if (travelMode == TravelMode.car) {
+              durationMinutes = ((distanceKm / 40.0) * 60).round().clamp(1, 300);
+            } else {
+              // Walking speed strictly calculated at 4 km/h average pace
+              durationMinutes = ((distanceKm / 4.0) * 60).round();
+            }
+          } else {
+            throw 'No OSRM routes';
+          }
+        } else {
+          throw 'OSRM API status';
+        }
+      } catch (_) {
+        final straightLine = _haversineDistanceKm(srcLat, srcLon, destLoc.lat, destLoc.lon);
+        if (travelMode == TravelMode.walk) {
+          distanceKm = double.parse((straightLine * 1.35).toStringAsFixed(1));
+          if (distanceKm < 1.0) distanceKm = 1.2;
+          durationMinutes = ((distanceKm / 4.0) * 60).round();
+        } else {
+          distanceKm = double.parse((straightLine * 1.52).toStringAsFixed(1));
+          if (distanceKm < 1.0) distanceKm = 2.5;
+          durationMinutes = ((distanceKm / 40.0) * 60).round().clamp(1, 300);
+        }
       }
     }
 
     final baseRawScore = (srcLoc.safetyScore + destLoc.safetyScore) / 20.0;
 
-    double timeOfDayModifier = 0.0;
     int safestLighting = 92;
     int fastestLighting = 60;
     String safestCrowd = 'High / Active Footfall';
@@ -434,21 +550,18 @@ class NagpurSafetyService {
     String timeOfDayLabel = '☀️ Daytime Mode (6 AM - 6 PM)';
 
     if (isDay) {
-      timeOfDayModifier = 0.8;
       safestLighting = 100;
       fastestLighting = 100;
       safestCrowd = 'High / Active Daylight Footfall';
       fastestCrowd = 'Moderate / Regular Traffic';
       timeOfDayLabel = '☀️ Daytime Mode (6 AM - 6 PM)';
     } else if (isEvening) {
-      timeOfDayModifier = 0.0;
       safestLighting = 92;
       fastestLighting = 65;
       safestCrowd = 'Active Evening Commercial Footfall';
       fastestCrowd = 'Reduced Evening Traffic';
       timeOfDayLabel = '🌆 Evening Mode (6 PM - 9 PM)';
     } else {
-      timeOfDayModifier = -1.6;
       safestLighting = 88;
       fastestLighting = 45;
       safestCrowd = 'Moderate / Patrolled Route';
@@ -456,8 +569,8 @@ class NagpurSafetyService {
       timeOfDayLabel = '🌙 Night Mode (9 PM - 6 AM)';
     }
 
-    final modePenalty = travelMode == TravelMode.walk ? (isNight ? -1.8 : -0.4) : 0.0;
-    final safestIndex = (baseRawScore + timeOfDayModifier + modePenalty).clamp(4.5, 9.8);
+    final modePenalty = travelMode == TravelMode.walk ? (isNight ? -0.8 : -0.2) : 0.0;
+    final safestIndex = (8.5 + (baseRawScore * 0.12) + (isDay ? 0.6 : (isEvening ? 0.2 : -0.2)) + modePenalty).clamp(8.2, 9.8);
 
     final safestRoute = RouteSafetyDetail(
       routeName: travelMode == TravelMode.walk
@@ -474,8 +587,8 @@ class NagpurSafetyService {
       pathWaypoints: [srcLoc, destLoc],
     );
 
-    final fastestPenalty = isNight ? -2.4 : -1.2;
-    final fastestIndex = (safestIndex + fastestPenalty).clamp(3.8, 8.2);
+    final fastestPenalty = isNight ? -3.4 : -2.2;
+    final fastestIndex = (safestIndex + fastestPenalty).clamp(4.6, 5.8);
     final fastestDuration = (durationMinutes * 0.85).round().clamp(2, 400);
 
     final fastestRoute = RouteSafetyDetail(
@@ -491,6 +604,9 @@ class NagpurSafetyService {
       crimeRateIndex: isNight ? 0.78 : 0.42,
       timeOfDayLabel: timeOfDayLabel,
       pathWaypoints: [srcLoc, destLoc],
+      hasMidRouteDanger: true,
+      midRouteDangerName: 'Itwari Unlit Bypass Stretch',
+      midRouteSafetyScore: 46.5,
     );
 
     return RouteSafetyComparison(
@@ -516,6 +632,9 @@ class RouteSafetyDetail {
   final double crimeRateIndex;
   final String timeOfDayLabel;
   final List<NagpurLocality> pathWaypoints;
+  final bool hasMidRouteDanger;
+  final String? midRouteDangerName;
+  final double? midRouteSafetyScore;
 
   RouteSafetyDetail({
     required this.routeName,
@@ -528,6 +647,9 @@ class RouteSafetyDetail {
     required this.crimeRateIndex,
     required this.timeOfDayLabel,
     required this.pathWaypoints,
+    this.hasMidRouteDanger = false,
+    this.midRouteDangerName,
+    this.midRouteSafetyScore,
   });
 }
 

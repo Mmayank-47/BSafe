@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class NagpurSafetyScreen extends StatefulWidget {
   const NagpurSafetyScreen({super.key});
@@ -271,12 +272,32 @@ class _NagpurSafetyScreenState extends State<NagpurSafetyScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          'Nagpur Safety Score',
+          'Nagpur Safety Audit',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             color: AppTheme.textDark,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              final Uri phoneUri = Uri.parse('tel:9109750185');
+              if (await canLaunchUrl(phoneUri)) {
+                await launchUrl(phoneUri);
+              }
+            },
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Color(0xFFDC2626),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.phone_in_talk_rounded, color: Colors.white, size: 18),
+            ),
+            tooltip: 'Call SOS Helpline 9109750185',
+          ),
+          const SizedBox(width: 8),
+        ],
         centerTitle: true,
       ),
       body: _isLoading

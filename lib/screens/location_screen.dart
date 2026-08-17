@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:safe/screens/nagpur_safety_screen.dart';
+import 'package:safe/screens/sos_screen.dart';
+import 'package:safe/services/alert_sound_service.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,7 +20,7 @@ class LocationScreen extends StatefulWidget {
   State<LocationScreen> createState() => _LocationScreenState();
 }
 
-class _LocationScreenState extends State<LocationScreen> {
+class _LocationScreenState extends State<LocationScreen> with TickerProviderStateMixin {
   double? lat;
   double? long;
   String locationMessage = "Fetching GPS location...";
@@ -27,13 +29,30 @@ class _LocationScreenState extends State<LocationScreen> {
   StreamSubscription<Position>? _positionSubscription;
 
   final NagpurSafetyService _nagpurService = NagpurSafetyService();
+  final AlertSoundService _soundService = AlertSoundService();
 
   // Source & Destination Route State
   static const String gpsSourceLabel = "Your current GPS location";
   String _sourceLocalityName = gpsSourceLabel;
   String _destLocalityName = "Sitabuldi";
+  final TextEditingController _sourceController = TextEditingController(text: gpsSourceLabel);
+  final TextEditingController _destController = TextEditingController(text: "Sitabuldi");
   bool _useSafestRoute = true;
   RouteSafetyComparison? _routeComparison;
+
+  // 10-Second Auto-Dismissing Route Caution Banner State
+  bool _show10sRouteBanner = false;
+  String _bannerLocalityName = '';
+  double _bannerSafetyScore = 0.0;
+  Timer? _route10sBannerTimer;
+
+  // 10-Second Blinking Red Screen Flash Alert State
+  bool _isBlinkingRedFlashActive = false;
+  AnimationController? _redBlinkController;
+  Animation<double>? _redBlinkAnimation;
+  Timer? _redBlink10sTimer;
+  String _redAlertTitle = '';
+  String _redAlertSubtitle = '';
 
   // In-App Turn-By-Turn Navigation Engine State
   bool _isNavigating = false;
@@ -42,26 +61,48 @@ class _LocationScreenState extends State<LocationScreen> {
   Timer? _navTimer;
   double _navProgressFraction = 0.0;
 
-  final List<String> _navInstructions = const [
-    "⬆️ Head north on Main Arterial Road (95% LED Lit)",
-    "↗️ In 300m, turn right onto Wardha Highway (High Footfall Zone)",
-    "⬆️ Continue straight for 1.8 km (Low Crime Zone)",
-    "🏁 Arriving safely at your Destination",
-  ];
-
   @override
   void initState() {
     super.initState();
+    _redBlinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _redBlinkAnimation = Tween<double>(begin: 0.2, end: 1.0).animate(
+      CurvedAnimation(parent: _redBlinkController!, curve: Curves.easeInOut),
+    );
     _initNagpurSafety();
     _getCurrentLocation();
+  }
+
+  void _trigger2sRedBlinkingAlert(String title, String subtitle) {
+    if (!_soundService.isProximityAlertEnabled) return;
+
+    _soundService.playPreviewSound();
+    _redBlink10sTimer?.cancel();
+    _redBlinkController?.repeat(reverse: true);
+
+    setState(() {
+      _isBlinkingRedFlashActive = true;
+      _redAlertTitle = title;
+      _redAlertSubtitle = subtitle;
+    });
+
+    // Auto-dismiss and stop blinking after exactly 2 seconds (30-50 score zone rule)
+    _redBlink10sTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        _redBlinkController?.stop();
+        setState(() {
+          _isBlinkingRedFlashActive = false;
+        });
+      }
+    });
   }
 
   Future<void> _initNagpurSafety() async {
     await _nagpurService.loadSafetyScores();
     if (mounted) {
-      setState(() {
-        _updateRouteComparison();
-      });
+      _updateRouteComparison();
     }
   }
 
@@ -82,6 +123,44 @@ class _LocationScreenState extends State<LocationScreen> {
     }
   }
 
+  void _checkRouteLowestSafetyZone(RouteSafetyComparison comparison) {
+    if (!_soundService.isProximityAlertEnabled) return;
+
+    final srcScore = comparison.source.safetyScore;
+    final destScore = comparison.destination.safetyScore;
+
+    NagpurLocality lowestLoc = comparison.destination;
+    double lowestScore = destScore;
+
+    if (srcScore < lowestScore) {
+      lowestLoc = comparison.source;
+      lowestScore = srcScore;
+    }
+
+    if (lowestScore >= 30.0 && lowestScore <= 50.0) {
+      _trigger2sRedBlinkingAlert(
+        "🚨 RISKY AREA ALERT (30-50 SCORE)!",
+        "Caution: ${lowestLoc.place} (${lowestScore.toStringAsFixed(1)}/100) — Low Safety Rating",
+      );
+
+      _route10sBannerTimer?.cancel();
+      setState(() {
+        _show10sRouteBanner = true;
+        _bannerLocalityName = lowestLoc.place;
+        _bannerSafetyScore = lowestScore;
+      });
+
+      // Auto-dismiss after exactly 2 seconds
+      _route10sBannerTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _show10sRouteBanner = false;
+          });
+        }
+      });
+    }
+  }
+
   LatLng _getSourceCoordinates() {
     if (_sourceLocalityName != gpsSourceLabel) {
       final match = _nagpurService.searchLocalities(_sourceLocalityName).firstOrNull;
@@ -96,6 +175,11 @@ class _LocationScreenState extends State<LocationScreen> {
   void dispose() {
     _positionSubscription?.cancel();
     _navTimer?.cancel();
+    _route10sBannerTimer?.cancel();
+    _redBlink10sTimer?.cancel();
+    _redBlinkController?.dispose();
+    _sourceController.dispose();
+    _destController.dispose();
     super.dispose();
   }
 
@@ -161,13 +245,48 @@ class _LocationScreenState extends State<LocationScreen> {
     }
   }
 
+  bool _isInMidRouteDangerZone = false;
+  bool _hasArrivedAtDestination = false;
+
+  String _currentTraversingAreaName = '';
+  double _currentTraversingAreaScore = 80.0;
+
   void _startInAppNavigation() {
     setState(() {
       _isNavigating = true;
       _isNavPaused = false;
       _navStepIndex = 0;
       _navProgressFraction = 0.0;
+      _isInMidRouteDangerZone = false;
+      _hasArrivedAtDestination = false;
     });
+
+    if (_routeComparison != null) {
+      _checkRouteLowestSafetyZone(_routeComparison!);
+    }
+
+    final activeRoute = _useSafestRoute
+        ? _routeComparison?.safestRoute
+        : _routeComparison?.fastestRoute;
+
+    final srcScore = _routeComparison?.source.safetyScore ?? 75.0;
+    final destScore = _routeComparison?.destination.safetyScore ?? 75.0;
+
+    _currentTraversingAreaName = _routeComparison?.source.place ?? 'Origin Area';
+    _currentTraversingAreaScore = srcScore;
+
+    // Trigger 2-second Red Alert ONLY if Source or Destination has a 30-50 score
+    if (srcScore >= 30.0 && srcScore <= 50.0) {
+      _trigger2sRedBlinkingAlert(
+        "🚨 RISKY SOURCE AREA (30-50 SCORE)!",
+        "Starting in ${_routeComparison?.source.place} (${srcScore.toStringAsFixed(1)}/100)",
+      );
+    } else if (destScore >= 30.0 && destScore <= 50.0) {
+      _trigger2sRedBlinkingAlert(
+        "🚨 RISKY DESTINATION (30-50 SCORE)!",
+        "Destination ${_routeComparison?.destination.place} (${destScore.toStringAsFixed(1)}/100)",
+      );
+    }
 
     _navTimer?.cancel();
     // Steady real-time motion simulation (0.02 step per 3s interval)
@@ -175,6 +294,33 @@ class _LocationScreenState extends State<LocationScreen> {
       if (!mounted || _isNavPaused) return;
       setState(() {
         _navProgressFraction += 0.02;
+
+        // Dynamic Area-wise Traversing Score Tracker:
+        if (_navProgressFraction < 0.30) {
+          _currentTraversingAreaName = _routeComparison?.source.place ?? 'Source Zone';
+          _currentTraversingAreaScore = srcScore;
+        } else if (_navProgressFraction >= 0.30 && _navProgressFraction <= 0.70) {
+          _currentTraversingAreaName = activeRoute?.midRouteDangerName ?? 'Mid-Route Corridor';
+          _currentTraversingAreaScore = activeRoute?.midRouteSafetyScore ?? 46.5;
+
+          // Trigger 2-second Red Alert ONLY if traversing intermediate area has 30-50 score
+          if (_currentTraversingAreaScore >= 30.0 && _currentTraversingAreaScore <= 50.0) {
+            if (!_isInMidRouteDangerZone) {
+              _isInMidRouteDangerZone = true;
+              _trigger2sRedBlinkingAlert(
+                "🚨 RISKY MID-ROUTE AREA (30-50 SCORE)!",
+                "Entering $_currentTraversingAreaName (${_currentTraversingAreaScore.toStringAsFixed(1)}/100)",
+              );
+            }
+          }
+        } else {
+          _currentTraversingAreaName = _routeComparison?.destination.place ?? 'Destination Zone';
+          _currentTraversingAreaScore = destScore;
+          if (_isInMidRouteDangerZone) {
+            _isInMidRouteDangerZone = false;
+          }
+        }
+
         if (_navProgressFraction >= 0.3 && _navStepIndex < 1) {
           _navStepIndex = 1;
         } else if (_navProgressFraction >= 0.6 && _navStepIndex < 2) {
@@ -185,9 +331,11 @@ class _LocationScreenState extends State<LocationScreen> {
 
         if (_navProgressFraction >= 1.0) {
           _navProgressFraction = 1.0;
+          _isInMidRouteDangerZone = false;
+          _hasArrivedAtDestination = true;
           _navTimer?.cancel();
           Fluttertoast.showToast(
-            msg: "🎉 Destination Reached Safely!",
+            msg: "🎉 You've Arrived at Your Destination!",
             toastLength: Toast.LENGTH_LONG,
           );
         }
@@ -231,9 +379,11 @@ class _LocationScreenState extends State<LocationScreen> {
 
   void _swapSourceAndDestination() {
     setState(() {
-      final temp = _sourceLocalityName;
-      _sourceLocalityName = _destLocalityName;
-      _destLocalityName = temp == gpsSourceLabel ? "Sitabuldi" : temp;
+      final temp = _sourceController.text;
+      _sourceController.text = _destController.text;
+      _destController.text = temp.isEmpty ? "Sitabuldi" : temp;
+      _sourceLocalityName = _sourceController.text;
+      _destLocalityName = _destController.text;
       _updateRouteComparison();
     });
   }
@@ -250,15 +400,17 @@ class _LocationScreenState extends State<LocationScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Header
-              Row(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Header
+                  Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
@@ -304,6 +456,9 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
               const SizedBox(height: 12),
 
+              // 10-Second Auto-Dismissing Route Danger Zone Alert Card
+              if (_show10sRouteBanner) _build10sRouteBannerCard(),
+
               // Dynamic Time of Day Status Pill
               if (_routeComparison != null) _buildTimeOfDayBanner(_routeComparison!),
               const SizedBox(height: 10),
@@ -334,10 +489,180 @@ class _LocationScreenState extends State<LocationScreen> {
           ),
         ),
       ),
-    );
+
+      // 10-Second Blinking Red Screen Flash Overlay Effect
+      if (_isBlinkingRedFlashActive && _redBlinkAnimation != null)
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _redBlinkAnimation!,
+              builder: (context, child) {
+                return Container(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.38 * _redBlinkAnimation!.value),
+                );
+              },
+            ),
+          ),
+        ),
+
+      // 10-Second High-Risk Red Alert Pop-Up Banner
+      if (_isBlinkingRedFlashActive)
+        Positioned(
+          top: 50,
+          left: 16,
+          right: 16,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF991B1B),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFFCA5A5), width: 2),
+                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 20, offset: Offset(0, 6))],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Colors.white24,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _redAlertTitle,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _redAlertSubtitle,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '🔴 Blinking 10s Flash Active • ${_soundService.soundDisplayName}',
+                          style: GoogleFonts.outfit(
+                            color: const Color(0xFFFECACA),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                    onPressed: () {
+                      _redBlink10sTimer?.cancel();
+                      _redBlinkController?.stop();
+                      setState(() => _isBlinkingRedFlashActive = false);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ],
+  ),
+);
   }
 
   // --- UI COMPONENTS ---
+
+  Widget _build10sRouteBannerCard() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.6)),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '⚠️ Route Alert (10s Auto-Dismiss)',
+                      style: GoogleFonts.outfit(
+                        color: const Color(0xFFEF4444),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      'Auto-closing',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Lowest Safety Zone: $_bannerLocalityName (${_bannerSafetyScore.toStringAsFixed(1)}/100)',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'Exercise caution in this segment. ${_soundService.soundDisplayName}',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+            onPressed: () {
+              _route10sBannerTimer?.cancel();
+              setState(() => _show10sRouteBanner = false);
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTimeOfDayBanner(RouteSafetyComparison comparison) {
     final label = comparison.timeOfDayLabel;
@@ -439,14 +764,18 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   Widget _buildSourceDestinationCard() {
-    final localities = _nagpurService.localities;
-
-    final sourceItems = [
+    final popularLocations = [
       gpsSourceLabel,
-      ...localities.map((l) => l.place),
+      'Sitabuldi',
+      'Civil Lines',
+      'VNIT Campus',
+      'Ramdaspeth',
+      'Mihan IT Hub',
+      'Khamla',
+      'Manewada',
+      'Airport Road',
+      'Sadar',
     ];
-
-    final destItems = localities.map((l) => l.place).toList();
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -471,7 +800,7 @@ class _LocationScreenState extends State<LocationScreen> {
                   const Icon(Icons.circle, color: Color(0xFF3B82F6), size: 14),
                   Container(
                     width: 2,
-                    height: 38,
+                    height: 48,
                     color: const Color(0xFFCBD5E1),
                   ),
                   const Icon(Icons.location_on_rounded, color: AppTheme.accentRose, size: 20),
@@ -479,145 +808,115 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
               const SizedBox(width: 14),
 
-              // Input Selectors
+              // Inputs Column
               Expanded(
                 child: Column(
                   children: [
-                    // SOURCE SELECTOR (GPS or Custom Nagpur Locality)
+                    // SOURCE FREEFORM TEXT INPUT
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: sourceItems.contains(_sourceLocalityName)
-                              ? _sourceLocalityName
-                              : gpsSourceLabel,
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF3B82F6)),
-                          items: sourceItems.map((locName) {
-                            final isGps = locName == gpsSourceLabel;
-                            return DropdownMenuItem<String>(
-                              value: locName,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isGps ? Icons.my_location_rounded : Icons.location_city_rounded,
-                                    size: 16,
-                                    color: isGps ? const Color(0xFF3B82F6) : AppTheme.primaryPurple,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      locName,
-                                      style: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: AppTheme.textDark,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                      child: Row(
+                        children: [
+                          const Icon(Icons.my_location_rounded, size: 18, color: Color(0xFF3B82F6)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _sourceController,
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppTheme.textDark,
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (newVal) {
-                            if (newVal != null) {
-                              setState(() {
-                                _sourceLocalityName = newVal;
+                              decoration: InputDecoration(
+                                hintText: 'Type starting location...',
+                                hintStyle: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  _sourceLocalityName = val.trim().isEmpty ? gpsSourceLabel : val.trim();
+                                });
                                 _updateRouteComparison();
-                              });
-                            }
-                          },
-                        ),
+                              },
+                            ),
+                          ),
+                          if (_sourceController.text.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _sourceController.clear();
+                                setState(() => _sourceLocalityName = gpsSourceLabel);
+                                _updateRouteComparison();
+                              },
+                              child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 10),
 
-                    // DESTINATION SELECTOR
+                    // DESTINATION FREEFORM TEXT INPUT
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: destItems.contains(_destLocalityName)
-                              ? _destLocalityName
-                              : (destItems.isNotEmpty ? destItems.first : 'Sitabuldi'),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.accentRose),
-                          items: destItems.map((locName) {
-                            final locObj = _nagpurService.searchLocalities(locName).firstOrNull;
-                            final score = locObj?.safetyScore ?? 70.0;
-                            final color = _getScoreColor(score);
-                            return DropdownMenuItem<String>(
-                              value: locName,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.location_on_rounded, size: 16, color: AppTheme.accentRose),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        locName,
-                                        style: GoogleFonts.outfit(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppTheme.textDark,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      '${score.toStringAsFixed(0)} pts',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: color,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 18, color: AppTheme.accentRose),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _destController,
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppTheme.textDark,
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (newVal) {
-                            if (newVal != null) {
-                              setState(() {
-                                _destLocalityName = newVal;
+                              decoration: InputDecoration(
+                                hintText: 'Type destination location...',
+                                hintStyle: GoogleFonts.outfit(color: AppTheme.textMuted, fontSize: 13),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  _destLocalityName = val.trim().isEmpty ? 'Sitabuldi' : val.trim();
+                                });
                                 _updateRouteComparison();
-                              });
-                            }
-                          },
-                        ),
+                              },
+                            ),
+                          ),
+                          if (_destController.text.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _destController.clear();
+                                setState(() => _destLocalityName = 'Sitabuldi');
+                                _updateRouteComparison();
+                              },
+                              child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                            ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
 
-              // Swap Button (⇅)
-              IconButton(
-                onPressed: _swapSourceAndDestination,
-                icon: Container(
+              // Swap Button
+              GestureDetector(
+                onTap: _swapSourceAndDestination,
+                child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppTheme.primaryPurple.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
+                    shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.swap_vert_rounded,
@@ -628,48 +927,35 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Quick GPS Reset Chip
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Start: ${_sourceLocalityName == gpsSourceLabel ? "Live GPS" : _sourceLocalityName}',
-                style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
-              ),
-              if (_sourceLocalityName != gpsSourceLabel)
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _sourceLocalityName = gpsSourceLabel;
+          // Autocomplete Suggestions Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: popularLocations.map((loc) {
+                final locObj = _nagpurService.getOrCreateLocality(loc, DateTime.now().hour);
+                final chipColor = _getScoreColor(locObj.safetyScore);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    avatar: Icon(Icons.near_me_rounded, size: 12, color: chipColor),
+                    label: Text(loc, style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold)),
+                    backgroundColor: const Color(0xFFF8FAFC),
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onPressed: () {
+                      setState(() {
+                        _destController.text = loc;
+                        _destLocalityName = loc;
+                      });
                       _updateRouteComparison();
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.my_location_rounded, size: 13, color: Color(0xFF3B82F6)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Use My GPS',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF3B82F6),
-                          ),
-                        ),
-                      ],
-                    ),
+                    },
                   ),
-                ),
-            ],
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
@@ -719,7 +1005,7 @@ class _LocationScreenState extends State<LocationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${safest?.durationMinutes ?? 42} min | 🛡️ ${safest?.safetyIndex ?? 8.8}/10',
+                    '${_formatDuration(safest?.durationMinutes ?? 42)} | 🛡️ ${safest?.safetyIndex ?? 8.8}/10',
                     style: GoogleFonts.outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -769,7 +1055,7 @@ class _LocationScreenState extends State<LocationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${fastest?.durationMinutes ?? 35} min | 🛡️ ${fastest?.safetyIndex ?? 6.4}/10',
+                    '${_formatDuration(fastest?.durationMinutes ?? 35)} | 🛡️ ${fastest?.safetyIndex ?? 6.4}/10',
                     style: GoogleFonts.outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1046,9 +1332,16 @@ class _LocationScreenState extends State<LocationScreen> {
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                icon: const Icon(Icons.navigation_rounded, size: 20),
+                icon: Icon(
+                  _selectedTravelMode == TravelMode.walk
+                      ? Icons.directions_walk_rounded
+                      : Icons.navigation_rounded,
+                  size: 20,
+                ),
                 label: Text(
-                  "Start Safe Navigation",
+                  _selectedTravelMode == TravelMode.walk
+                      ? "Start Safe Walk"
+                      : "Start Safe Navigation",
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -1088,6 +1381,15 @@ class _LocationScreenState extends State<LocationScreen> {
     );
   }
 
+  String _formatDuration(int minutes) {
+    if (minutes >= 60) {
+      final hrs = minutes ~/ 60;
+      final mins = minutes % 60;
+      return mins > 0 ? '$hrs hrs $mins mins' : '$hrs hrs';
+    }
+    return '$minutes min';
+  }
+
   // --- IN-APP TURN-BY-TURN NAVIGATION MODE HUD VIEW ---
 
   Widget _buildInAppNavigationHUD() {
@@ -1107,7 +1409,21 @@ class _LocationScreenState extends State<LocationScreen> {
     final currentVehLat = sourceLat + (targetLat - sourceLat) * _navProgressFraction;
     final currentVehLon = sourceLon + (targetLon - sourceLon) * _navProgressFraction;
 
-    final currentInstruction = _navInstructions[_navStepIndex];
+    final navInstructions = _selectedTravelMode == TravelMode.walk
+        ? const [
+            "🚶 Walk north along Lit Pedestrian Sidewalk (98% Lit)",
+            "↗️ Cross Wardha Road at designated Zebra Crossing",
+            "🚶 Follow Well-Lit Commercial Corridor (Active Footfall)",
+            "🏁 Safely Arrived at Destination",
+          ]
+        : const [
+            "⬆️ Head north on Main Arterial Road (95% LED Lit)",
+            "↗️ In 300m, turn right onto Wardha Highway (High Footfall Zone)",
+            "⬆️ Continue straight for 1.8 km (Low Crime Zone)",
+            "🏁 Arriving safely at your Destination",
+          ];
+
+    final currentInstruction = navInstructions[_navStepIndex];
     final remainingKm = (detailKm(routeDetail) * (1.0 - _navProgressFraction)).toStringAsFixed(1);
     final remainingMin = ((detailMin(routeDetail)) * (1.0 - _navProgressFraction)).round();
 
@@ -1139,7 +1455,7 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
               MarkerLayer(
                 markers: [
-                  // Live Vehicle / User Position Marker
+                  // Live Vehicle / Walking Position Marker
                   Marker(
                     point: LatLng(currentVehLat, currentVehLon),
                     width: 54,
@@ -1152,8 +1468,10 @@ class _LocationScreenState extends State<LocationScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 10)],
                       ),
-                      child: const Icon(
-                        Icons.navigation_rounded,
+                      child: Icon(
+                        _selectedTravelMode == TravelMode.walk
+                            ? Icons.directions_walk_rounded
+                            : Icons.navigation_rounded,
                         color: Colors.white,
                         size: 32,
                       ),
@@ -1191,7 +1509,11 @@ class _LocationScreenState extends State<LocationScreen> {
                       color: AppTheme.primaryPurple,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(Icons.turn_right_rounded, color: Colors.white, size: 28),
+                    child: Icon(
+                      _selectedTravelMode == TravelMode.walk ? Icons.directions_walk_rounded : Icons.turn_right_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1209,11 +1531,11 @@ class _LocationScreenState extends State<LocationScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Safety Corridor: 🛡️ ${routeDetail?.safetyIndex ?? 8.8}/10 (${routeDetail?.lightingScorePercent ?? 92}% Lit)',
+                          '📍 Area: ${_currentTraversingAreaName.isNotEmpty ? _currentTraversingAreaName : "Current Corridor"} (${_currentTraversingAreaScore.toStringAsFixed(1)}/100) • Safety: 🛡️ ${routeDetail?.safetyIndex ?? 8.8}/10',
                           style: GoogleFonts.outfit(
-                            color: const Color(0xFF10B981),
+                            color: _currentTraversingAreaScore <= 50.0 ? const Color(0xFFEF4444) : const Color(0xFF10B981),
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -1223,6 +1545,140 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
             ),
           ),
+
+          // 2b. 10-Second Blinking Red Screen Flash Overlay Effect
+          if (_isBlinkingRedFlashActive && _redBlinkAnimation != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _redBlinkAnimation!,
+                  builder: (context, child) {
+                    return Container(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.38 * _redBlinkAnimation!.value),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+          // 2c. 10-Second High-Risk Red Alert Pop-Up Banner
+          if (_isBlinkingRedFlashActive)
+            Positioned(
+              top: 50,
+              left: 16,
+              right: 16,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF991B1B),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFFCA5A5), width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 20, offset: Offset(0, 6))],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Colors.white24,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _redAlertTitle,
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _redAlertSubtitle,
+                              style: GoogleFonts.outfit(
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '🔴 Blinking 10s Flash Active • ${_soundService.soundDisplayName}',
+                              style: GoogleFonts.outfit(
+                                color: const Color(0xFFFECACA),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                        onPressed: () {
+                          _redBlink10sTimer?.cancel();
+                          _redBlinkController?.stop();
+                          setState(() => _isBlinkingRedFlashActive = false);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // 2b. Mid-Route Danger Alert Banner (Overlay when passing through risky stretch)
+          if (_isInMidRouteDangerZone)
+            Positioned(
+              top: 145,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4))],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '⚠️ DANGER AHEAD: Passing Unsafe Stretch',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            '${routeDetail?.midRouteDangerName ?? "Itwari Unlit Stretch"} (${routeDetail?.midRouteSafetyScore ?? 46.5}/100)',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // 3. Bottom Navigation HUD Panel with Play/Pause Control
           Positioned(
@@ -1246,15 +1702,15 @@ class _LocationScreenState extends State<LocationScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$remainingMin min',
+                            _formatDuration(remainingMin),
                             style: GoogleFonts.outfit(
-                              fontSize: 28,
+                              fontSize: 26,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.primaryPurple,
                             ),
                           ),
                           Text(
-                            '$remainingKm km remaining | ETA 10:45 AM',
+                            '$remainingKm km remaining',
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               color: AppTheme.textMuted,
@@ -1288,10 +1744,16 @@ class _LocationScreenState extends State<LocationScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.speed_rounded, size: 16, color: Color(0xFF10B981)),
+                                Icon(
+                                  _selectedTravelMode == TravelMode.walk ? Icons.directions_walk_rounded : Icons.speed_rounded,
+                                  size: 16,
+                                  color: const Color(0xFF10B981),
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _isNavPaused ? 'Paused' : '32 km/h',
+                                  _isNavPaused
+                                      ? 'Paused'
+                                      : (_selectedTravelMode == TravelMode.walk ? '4.0 km/h (Walk)' : '40 km/h (Car)'),
                                   style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFF10B981),
@@ -1340,8 +1802,203 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
             ),
           ),
+
+          // 3b. Floating Emergency SOS Button during Live Navigation
+          Positioned(
+            bottom: 165,
+            right: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => AlertMessageScreen(
+                        initialLat: currentVehLat,
+                        initialLon: currentVehLon,
+                        initialRecentCallVector: '9109750185',
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(30),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 14,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.sos_rounded, color: Colors.white, size: 26),
+                      const SizedBox(width: 6),
+                      Text(
+                        'SOS (9109750185)',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 4. Google Maps Style Destination Arrival Celebration Sheet
+          if (_hasArrivedAtDestination)
+            _buildGoogleMapsArrivalSheet(routeDetail),
         ],
       ),
+    );
+  }
+
+  Widget _buildGoogleMapsArrivalSheet(RouteSafetyDetail? routeDetail) {
+    final destName = _routeComparison?.destination.place ?? _destLocalityName;
+    final distStr = "${detailKm(routeDetail)} km";
+    final totalMins = detailMin(routeDetail);
+    final timeStr = totalMins >= 60
+        ? "${totalMins ~/ 60}h ${totalMins % 60}m"
+        : "$totalMins mins";
+    final safetyStr = "${routeDetail?.safetyIndex ?? 8.8}/10";
+
+    return Positioned(
+      bottom: 24,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.transparent,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFF10B981), width: 2.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 24,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle_rounded,
+                  color: Color(0xFF10B981),
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "You've Arrived!",
+                style: GoogleFonts.outfit(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                destName,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildArrivalStatItem("⏱️ Time", timeStr),
+                  Container(width: 1, height: 32, color: Colors.white24),
+                  _buildArrivalStatItem("📏 Distance", distStr),
+                  Container(width: 1, height: 32, color: Colors.white24),
+                  _buildArrivalStatItem("🛡️ Safety", safetyStr),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isNavigating = false;
+                      _hasArrivedAtDestination = false;
+                      _navProgressFraction = 0.0;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: Text(
+                    "Done",
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArrivalStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            color: Colors.white60,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 

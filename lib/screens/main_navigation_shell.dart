@@ -6,6 +6,9 @@ import 'package:safe/screens/location_screen.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/contacts/contacts_screen.dart';
 
+import 'package:safe/screens/sos_screen.dart';
+import 'package:safe/widgets/smart_wake_gesture_detector.dart';
+
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
 
@@ -16,6 +19,16 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+
+  void _onSmartWakeLDetected() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => const AlertMessageScreen(
+          initialRecentCallVector: '9109750185',
+        ),
+      ),
+    );
+  }
 
   // Initial App Entry: Route Safety & Source-Destination Finder (Photo 1 & 2 UI/UX)
   final List<Widget> _pages = const [
@@ -28,7 +41,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   final List<_NavItemData> _navItems = const [
     _NavItemData(icon: Icons.map_rounded, label: 'Route Safety'),
-    _NavItemData(icon: Icons.shield_rounded, label: 'Dashboard'),
+    _NavItemData(icon: Icons.shield_rounded, label: 'Safety Audit'),
     _NavItemData(icon: Icons.local_police_rounded, label: 'Emergency'),
     _NavItemData(icon: Icons.people_alt_rounded, label: 'Contacts'),
     _NavItemData(icon: Icons.auto_awesome_rounded, label: 'Feed'),
@@ -57,19 +70,22 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.pageBackgroundGradient,
-        ),
-        child: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          children: _pages,
+      body: SmartWakeGestureDetector(
+        onLPatternDetected: _onSmartWakeLDetected,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.pageBackgroundGradient,
+          ),
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            children: _pages,
+          ),
         ),
       ),
       bottomNavigationBar: SafeArea(

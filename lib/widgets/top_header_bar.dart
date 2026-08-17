@@ -12,7 +12,7 @@ class TopHeaderBar extends StatelessWidget {
   });
 
   static const List<_HeaderItemData> _items = [
-    _HeaderItemData(icon: Icons.shield_rounded, label: 'Dashboard'),
+    _HeaderItemData(icon: Icons.shield_rounded, label: 'Safety Audit'),
     _HeaderItemData(icon: Icons.local_police_rounded, label: 'Emergency'),
     _HeaderItemData(icon: Icons.map_rounded, label: 'Location'),
     _HeaderItemData(icon: Icons.people_alt_rounded, label: 'Contacts'),
