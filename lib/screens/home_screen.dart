@@ -13,6 +13,7 @@ import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
 import 'package:safe/widgets/pulse_sos_button.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _audioEngine.startEngine();
+    _requestMicAndStartEngine();
     _loadNagpurSafety();
     _auditSubscription = _safetyService.eventStream.listen((_) {
       _loadNagpurSafety();
@@ -57,6 +58,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _triggerVoiceEmergencyEscalation(hotword);
       }
     });
+  }
+
+  void _requestMicAndStartEngine() async {
+    final status = await Permission.microphone.request();
+    if (status.isGranted) {
+      _audioEngine.startEngine();
+    }
   }
 
   Future<void> _loadNagpurSafety() async {
@@ -936,133 +944,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-            // Voice Assistant Hotword & Acoustic Guard Card
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              sliver: SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1B4B),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: AppTheme.accentNeonPurple.withValues(alpha: 0.5), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.accentNeonPurple.withValues(alpha: 0.2),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.mic_rounded, color: Color(0xFF10B981), size: 22),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '🎙️ Voice Assistant Active',
-                                    style: GoogleFonts.outfit(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Continuous Hotword & Acoustic Guard ON',
-                                    style: GoogleFonts.outfit(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryPurple.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppTheme.accentNeonPurple),
-                            ),
-                            child: Text(
-                              '${_currentDb.toStringAsFixed(1)} dB',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      Text(
-                        'Distress Hotwords Watched:',
-                        style: GoogleFonts.outfit(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: ['"help"', '"bachao"', '"save me"', '"emergency"', '"police"'].map((w) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Text(
-                              w,
-                              style: GoogleFonts.outfit(color: const Color(0xFF06B6D4), fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            _triggerVoiceEmergencyEscalation('HOTWORD: "BACHAO" (Test Trigger)');
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.redAccent,
-                            side: const BorderSide(color: Colors.redAccent, width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          icon: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
-                          label: Text(
-                            '⚡ Test Voice Hotword Emergency Trigger',
-                            style: GoogleFonts.outfit(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),
