@@ -48,6 +48,7 @@ class MeshNetworkService {
 
   StreamController<List<Map<String, dynamic>>>? _inboxController;
   final List<Map<String, dynamic>> _localDistressRecords = [];
+  final Set<String> _respondedIds = {};
 
   void addLocalDistressRecord(Map<String, dynamic> record) {
     final id = record['sosIdHex'] ?? '${record['latitude']}_${record['longitude']}_${record['timestamp']}';
@@ -57,17 +58,28 @@ class MeshNetworkService {
     _fetchAndEmitInbox();
   }
 
+  void removeDistressRecord(Map<String, dynamic> record) {
+    final key = (record['sosIdHex'] ?? '${record['latitude']}_${record['longitude']}_${record['timestamp']}').toString();
+    _respondedIds.add(key);
+    _localDistressRecords.removeWhere((r) => (r['sosIdHex'] ?? '${r['latitude']}_${r['longitude']}_${r['timestamp']}').toString() == key);
+    _fetchAndEmitInbox();
+  }
+
   Future<List<Map<String, dynamic>>> fetchAllDistressRecords() async {
     final nativeRecords = await WomenSafetyMeshSosService.getReceivedSosRecords();
     final Map<String, Map<String, dynamic>> combined = {};
 
     for (final r in nativeRecords) {
       final key = (r['sosIdHex'] ?? '${r['latitude']}_${r['longitude']}_${r['timestamp']}').toString();
-      combined[key] = r;
+      if (!_respondedIds.contains(key)) {
+        combined[key] = r;
+      }
     }
     for (final r in _localDistressRecords) {
       final key = (r['sosIdHex'] ?? '${r['latitude']}_${r['longitude']}_${r['timestamp']}').toString();
-      combined[key] = r;
+      if (!_respondedIds.contains(key)) {
+        combined[key] = r;
+      }
     }
     return combined.values.toList();
   }

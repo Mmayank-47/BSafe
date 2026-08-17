@@ -871,17 +871,40 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                                     const SizedBox(width: 8),
                                     ElevatedButton(
                                       onPressed: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text("Responding to ${alert['victimName']} distress signal!"),
-                                            backgroundColor: const Color(0xFFE11D48),
-                                          ),
-                                        );
+                                        _meshService.removeDistressRecord(alert);
+                                        if (mounted) {
+                                          setState(() {
+                                            _distressInbox.removeWhere((r) =>
+                                                (r['sosIdHex'] ?? '${r['latitude']}_${r['longitude']}_${r['timestamp']}').toString() ==
+                                                (alert['sosIdHex'] ?? '${alert['latitude']}_${alert['longitude']}_${alert['timestamp']}').toString());
+                                          });
+                                          _addLog("✅ RESOLVED DISTRESS: Solved peer distress signal from ${alert['victimName'] ?? 'Peer'}!");
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Row(
+                                                children: [
+                                                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      "Solved peer distress signal for ${alert['victimName'] ?? 'Nearby Peer'}!",
+                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              backgroundColor: const Color(0xFF10B981),
+                                              behavior: SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              duration: const Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFE11D48),
+                                        backgroundColor: const Color(0xFF10B981),
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(10),
                                         ),
@@ -889,7 +912,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                                       ),
                                       child: const Text(
                                         "Respond",
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                   ],

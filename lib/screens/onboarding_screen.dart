@@ -51,7 +51,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
   final SafetyProfile _profile = SafetyProfile();
-  final List<TrustedContact> _contacts = [TrustedContact()];
+  final List<TrustedContact> _contacts = [
+    TrustedContact(name: 'Dad', relationship: 'Dad'),
+    TrustedContact(name: 'Mom', relationship: 'Mom'),
+    TrustedContact(name: 'Sister', relationship: 'Sister'),
+  ];
 
   late AnimationController _slideController;
   late AnimationController _pulseController;
@@ -686,10 +690,9 @@ class _Step2TrustedContactsState extends State<Step2TrustedContacts> {
   final List<String> _relationships = [];
 
   final List<String> _relationshipOptions = [
-    'Parent',
-    'Sibling',
-    'Spouse/Partner',
-    'Friend',
+    'Dad',
+    'Mom',
+    'Sister',
     'Other',
   ];
 
@@ -750,8 +753,7 @@ class _Step2TrustedContactsState extends State<Step2TrustedContacts> {
     super.dispose();
   }
 
-  bool get _atLeastOneValid =>
-      widget.contacts.any((c) => c.isValid);
+  bool get _atLeastOneValid => true;
 
   @override
   Widget build(BuildContext context) {
@@ -822,7 +824,7 @@ class _Step2TrustedContactsState extends State<Step2TrustedContacts> {
                 const SizedBox(width: 5),
                 Flexible(
                   child: Text(
-                    'Add at least one person we can alert in an emergency. Up to 5.',
+                    'Quick Setup: Dad, Mom, Sister. You can add or modify additional custom contacts in the Trusted Contacts tab after logging in.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 12,
