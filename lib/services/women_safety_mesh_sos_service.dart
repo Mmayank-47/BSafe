@@ -105,4 +105,38 @@ class WomenSafetyMeshSosService {
       return null;
     }
   }
+
+  /// Send a direct background SMS to a phone number bypassing SMS app UI
+  static Future<bool> sendDirectSms(String phoneNumber, String message) async {
+    try {
+      final bool? success = await _channel.invokeMethod<bool>('sendDirectSms', {
+        'phoneNumber': phoneNumber,
+        'message': message,
+      });
+      return success ?? false;
+    } catch (e) {
+      debugPrint('Direct SMS invocation error: $e');
+      return false;
+    }
+  }
+
+  /// Enable or disable Always-On Display mode
+  static Future<bool> enableAlwaysOnDisplay([bool enable = true]) async {
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('enableAlwaysOnDisplay', {'enable': enable});
+      return res ?? true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Manually wake up device screen on emergency trigger
+  static Future<bool> wakeUpScreen() async {
+    try {
+      final bool? res = await _channel.invokeMethod<bool>('wakeUpScreen');
+      return res ?? true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

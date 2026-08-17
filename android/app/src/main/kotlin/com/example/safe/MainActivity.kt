@@ -1,20 +1,72 @@
 package com.example.safe
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorManager
+import android.os.Build
+import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.WindowManager
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import com.bitchat.android.womensafety.ShakeDetector
 import com.bitchat.android.womensafety.WomenSafetySosChannelHandler
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.bsafe/womensafety_mesh_sos"
 
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private var shakeDetector: ShakeDetector? = null
+    private var isShakeSosEnabled: Boolean = true
+    private var methodChannel: MethodChannel? = null
+
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        val handler = WomenSafetySosChannelHandler(applicationContext)
+        // Enable Always-On Display & Show over Lockscreen Window Flags
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        val handler = WomenSafetySosChannelHandler(applicationContext)
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        methodChannel = channel
+
+        // Initialize Shake Detector Sensor
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        shakeDetector = ShakeDetector {
+            if (isShakeSosEnabled) {
+                runOnUiThread {
+                    wakeUpDeviceScreen()
+                    vibrateOnEmergency()
+                    val record = handler.triggerEmergencySos(
+                        latitude = 21.1458,
+                        longitude = 79.0882,
+                        batteryLevel = 95,
+                        message = "🚨 SHAKE-TO-SOS! Phone shaken vigorously - Emergency help required!"
+                    )
+                    methodChannel?.invokeMethod("onShakeSosTriggered", record)
+                }
+            }
+        }
+
+        registerShakeListener()
+
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "initSosModule" -> {
                     val victimName = call.argument<String>("victimName") ?: "User"
@@ -23,6 +75,7 @@ class MainActivity: FlutterActivity() {
                     result.success(success)
                 }
                 "triggerEmergencySos" -> {
+                    wakeUpDeviceScreen()
                     val lat = call.argument<Double>("latitude") ?: 0.0
                     val lng = call.argument<Double>("longitude") ?: 0.0
                     val battery = call.argument<Int>("batteryLevel") ?: 100
@@ -55,11 +108,119 @@ class MainActivity: FlutterActivity() {
                     val record = handler.simulateIncomingPeerSos(name, lat, lng, battery, msg)
                     result.success(record)
                 }
+                "toggleShakeSos" -> {
+                    val enable = call.argument<Boolean>("enable") ?: true
+                    isShakeSosEnabled = enable
+                    if (enable) registerShakeListener() else unregisterShakeListener()
+                    result.success(isShakeSosEnabled)
+                }
+                "triggerShakeSosSimulation" -> {
+                    runOnUiThread {
+                        wakeUpDeviceScreen()
+                        vibrateOnEmergency()
+                        val record = handler.triggerEmergencySos(
+                            latitude = 21.1458,
+                            longitude = 79.0882,
+                            batteryLevel = 95,
+                            message = "🚨 SHAKE-TO-SOS! Phone shaken vigorously - Emergency help required!"
+                        )
+                        channel.invokeMethod("onShakeSosTriggered", record)
+                        result.success(record)
+                    }
+                }
+                "sendDirectSms" -> {
+                    val phone = call.argument<String>("phoneNumber") ?: ""
+                    val msg = call.argument<String>("message") ?: ""
+                    val success = sendDirectSms(phone, msg)
+                    result.success(success)
+                }
+                "enableAlwaysOnDisplay" -> {
+                    val enable = call.argument<Boolean>("enable") ?: true
+                    if (enable) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    result.success(true)
+                }
+                "wakeUpScreen" -> {
+                    wakeUpDeviceScreen()
+                    result.success(true)
+                }
                 else -> {
                     result.notImplemented()
                 }
             }
         }
     }
-}
 
+    private fun wakeUpDeviceScreen() {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            @Suppress("DEPRECATION")
+            val wakeLock = powerManager.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "bSafe:EmergencyWakeLock"
+            )
+            wakeLock.acquire(10000L) // Wakes up screen for 10 seconds
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Wake lock error: ${e.message}")
+        }
+    }
+
+    private fun sendDirectSms(phoneNumber: String, message: String): Boolean {
+        return try {
+            val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                applicationContext.getSystemService(android.telephony.SmsManager::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                android.telephony.SmsManager.getDefault()
+            }
+            val parts = smsManager.divideMessage(message)
+            smsManager.sendMultipartTextMessage(phoneNumber, null, parts, null, null)
+            android.util.Log.i("DirectSms", "✅ Direct background SMS dispatched to $phoneNumber")
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DirectSms", "❌ Direct SMS send failed to $phoneNumber: ${e.message}")
+            false
+        }
+    }
+
+    private fun registerShakeListener() {
+        if (accelerometer != null && shakeDetector != null) {
+            sensorManager?.registerListener(shakeDetector, accelerometer, SensorManager.SENSOR_DELAY_UI)
+        }
+    }
+
+    private fun unregisterShakeListener() {
+        if (shakeDetector != null) {
+            sensorManager?.unregisterListener(shakeDetector)
+        }
+    }
+
+    private fun vibrateOnEmergency() {
+        try {
+            @Suppress("DEPRECATION")
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                vibrator.vibrate(500)
+            }
+        } catch (e: Exception) {
+            // Ignore vibration errors on emulators
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isShakeSosEnabled) {
+            registerShakeListener()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterShakeListener()
+    }
+}

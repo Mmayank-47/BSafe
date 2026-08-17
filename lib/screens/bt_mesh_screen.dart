@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:safe/services/mesh_network_service.dart';
+import 'package:safe/services/shake_sos_service.dart';
 import 'package:safe/services/women_safety_mesh_sos_service.dart';
 import 'package:safe/theme/app_theme.dart';
 
@@ -13,12 +14,16 @@ class BtMeshScreen extends StatefulWidget {
 
 class _BtMeshScreenState extends State<BtMeshScreen> {
   final MeshNetworkService _meshService = MeshNetworkService();
+  final ShakeSosService _shakeSosService = ShakeSosService();
+
   StreamSubscription<int>? _peerCountSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _inboxSubscription;
+  StreamSubscription<Map<String, dynamic>>? _shakeSubscription;
 
   int _currentPeerCount = 0;
   bool _isInit = false;
   bool _isBroadcasting = false;
+  bool _isShakeEnabled = true;
   String _deliveryStatus = "READY (STANDBY)";
   String? _lastSosIdHex;
   final List<String> _meshLogs = [];
@@ -57,12 +62,26 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
         }
       }
     });
+
+    _shakeSubscription = _shakeSosService.onShakeSosTriggered.listen((data) {
+      if (mounted) {
+        _addLog("🚨 SHAKE-TO-SOS DETECTED! Accelerometer triggered BLE Mesh panic!");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("🚨 SHAKE-TO-SOS TRIGGERED! Emergency distress signal broadcasted!"),
+            backgroundColor: Color(0xFFF43F5E),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
     _peerCountSubscription?.cancel();
     _inboxSubscription?.cancel();
+    _shakeSubscription?.cancel();
     super.dispose();
   }
 
@@ -80,6 +99,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
         _isInit = success;
         _currentPeerCount = initialCount;
         _distressInbox = initialInbox;
+        _isShakeEnabled = _shakeSosService.isShakeEnabled;
         _deliveryStatus = success ? "BLE MESH ONLINE (READY)" : "STANDBY (OFFLINE MESH)";
       });
       _addLog(success ? "✅ BitChat Native BLE Mesh initialized ($initialCount live nodes connected)" : "ℹ️ Mesh Engine standby mode");
@@ -123,6 +143,19 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
         _distressInbox = updatedList;
       });
       _addLog("🚨 DISTRESS INBOX: Caught signal from ${res['victimName']}!");
+    }
+  }
+
+  Future<void> _testShakeSimulation() async {
+    _addLog("⚡ Simulating vigorous phone shake trigger...");
+    final res = await _shakeSosService.triggerShakeSimulation();
+    if (res != null) {
+      final updatedInbox = await _meshService.fetchAllDistressRecords();
+      if (mounted) {
+        setState(() {
+          _distressInbox = updatedInbox;
+        });
+      }
     }
   }
 
@@ -280,7 +313,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      "Off-grid multi-hop Bluetooth Low Energy mesh network. Broadcasts and receives emergency panic distress beacons up to 7 hops without Internet.",
+                      "Off-grid multi-hop Bluetooth Low Energy mesh network. Broadcasts emergency distress beacons up to 7 hops without Internet.",
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 12.5,
@@ -293,7 +326,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
 
               const SizedBox(height: 16),
 
-              // Mesh Telemetry Summary Cards: Leak-Proof Responsive Grid
+              // Mesh Telemetry Summary Cards
               Row(
                 children: [
                   Expanded(
@@ -318,6 +351,98 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // SHAKE TO SOS FEATURE CONTROL CARD
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: AppTheme.glassCardDecoration(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.vibration_rounded, color: Color(0xFFF43F5E), size: 22),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Shake-to-SOS Detection",
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        Switch(
+                          value: _isShakeEnabled,
+                          activeTrackColor: const Color(0xFFF43F5E),
+                          onChanged: (val) async {
+                            final newState = await _shakeSosService.toggleShakeSos(val);
+                            setState(() {
+                              _isShakeEnabled = newState;
+                            });
+                            _addLog(newState ? "✅ Shake-to-SOS detection ENABLED" : "⛔ Shake-to-SOS detection DISABLED");
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      "Vigorous phone shaking (2x threshold) automatically triggers high-priority emergency BLE Mesh SOS beacon broadcast",
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.sensors_rounded, size: 12, color: Color(0xFF8B5CF6)),
+                              SizedBox(width: 4),
+                              Text(
+                                "ACCELEROMETER ACTIVE",
+                                style: TextStyle(
+                                  color: Color(0xFF8B5CF6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: _testShakeSimulation,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF43F5E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.screen_rotation_rounded, size: 13),
+                          label: const Text(
+                            "Simulate Shake",
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 16),
@@ -442,7 +567,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
 
               const SizedBox(height: 16),
 
-              // DISTRESS INBOX SECTION: Leak-Proof Responsive Wrapper
+              // DISTRESS INBOX SECTION
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
