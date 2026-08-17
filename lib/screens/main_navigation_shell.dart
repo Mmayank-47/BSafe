@@ -11,6 +11,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:safe/screens/sos_screen.dart';
 import 'package:safe/widgets/smart_wake_gesture_detector.dart';
 
+import 'dart:async';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:safe/services/shake_sos_service.dart';
+
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
 
@@ -21,6 +27,102 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
+  StreamSubscription<Map<String, dynamic>>? _shakeSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeSubscription = ShakeSosService().onShakeSosTriggered.listen((data) {
+      _handleShakeSosTriggered(data);
+    });
+  }
+
+  void _handleShakeSosTriggered(Map<String, dynamic> data) async {
+    final lat = (data['latitude'] as num?)?.toDouble() ?? 21.1458;
+    final lng = (data['longitude'] as num?)?.toDouble() ?? 79.0882;
+
+    if (!mounted) return;
+
+    // 1. Generate High-Priority Red Color Error Message Banner & Toast
+    Fluttertoast.showToast(
+      msg: "🚨 RED ALERT: Shake SOS Triggered (2 Shakes)! Launching Auto SMS...",
+      toastLength: Toast.LENGTH_LONG,
+      backgroundColor: const Color(0xFFDC2626),
+      textColor: Colors.white,
+      fontSize: 14,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF991B1B),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.8),
+        ),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.white24,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline_rounded, color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🚨 RED ALERT: SHAKE-TO-SOS DETECTED!',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    '2 Shakes Detected! Redirecting to Emergency Auto SMS (9109750185)...',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+
+    // 2. Direct Redirect to Emergency Auto SMS
+    final smsMessage = '🚨 RED ALERT: SHAKE-TO-SOS DETECTED (2 SHAKES)! Immediate Help Needed!\nLive GPS Location: https://maps.google.com/?q=$lat,$lng\nHelpline: 9109750185';
+    final Uri smsUri = Uri.parse('sms:9109750185?body=${Uri.encodeComponent(smsMessage)}');
+    try {
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(smsUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(smsUri);
+      }
+    } catch (_) {}
+
+    // 3. Open Alert Message Screen (SOS Call Log Vector)
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => AlertMessageScreen(
+          initialLat: lat,
+          initialLon: lng,
+          initialRecentCallVector: '9109750185',
+        ),
+      ),
+    );
+  }
 
   void _onSmartWakeLDetected() async {
     double sosLat = 21.1458;
@@ -83,6 +185,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   @override
   void dispose() {
+    _shakeSubscription?.cancel();
     _pageController.dispose();
     super.dispose();
   }

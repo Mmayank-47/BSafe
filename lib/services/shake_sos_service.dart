@@ -76,22 +76,27 @@ class ShakeSosService {
       debugPrint('Agentic Triage API error: $e');
     }
 
-    // 4. Direct Background SMS Dispatch to Trusted Contacts (Bypasses UI Prompts)
+    // 4. Direct Background SMS Dispatch & Auto SMS Launcher to Helpline / Trusted Contacts
     try {
-      final mapLink = 'http://maps.google.com/?q=$lat,$lng';
-      final smsMessage = '$customMessage\nVictim: $victimName\nGPS Location: $mapLink';
-      final trustedContacts = ['+919109750185', '+919876543210'];
+      final mapLink = 'https://maps.google.com/?q=$lat,$lng';
+      final smsMessage = '🚨 RED ALERT: SHAKE-TO-SOS DETECTED (2 SHAKES)! $customMessage\nVictim: $victimName\nLive GPS Location: $mapLink\nHelpline: 9109750185';
+      final trustedContacts = ['9109750185'];
 
       for (final phone in trustedContacts) {
         final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, smsMessage);
         if (sentDirect) {
           debugPrint('✅ Direct background SMS dispatched to trusted contact $phone');
-        } else {
-          // Fallback URI launcher if SmsManager fails or no SIM inserted on device
-          final Uri smsUri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(smsMessage)}');
+        }
+
+        final Uri smsUri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(smsMessage)}');
+        try {
           if (await canLaunchUrl(smsUri)) {
+            await launchUrl(smsUri, mode: LaunchMode.externalApplication);
+          } else {
             await launchUrl(smsUri);
           }
+        } catch (e) {
+          debugPrint('SMS launch error: $e');
         }
       }
     } catch (e) {
