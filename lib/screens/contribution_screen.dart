@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:safe/models/safety_audit_models.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/services/safety_audit_service.dart';
@@ -76,6 +76,62 @@ class _ContributionScreenState extends State<ContributionScreen> {
       _selectedLat = loc.lat;
       _selectedLng = loc.lon;
     } catch (_) {}
+  }
+
+  Future<void> _pickPhoto(StateSetter setModalState) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1B4B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Select Photo Source',
+                style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded, color: AppTheme.accentCyan, size: 28),
+                title: Text('📸 Take Photo with Camera', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ImagePicker picker = ImagePicker();
+                  final XFile? image = await picker.pickImage(source: ImageSource.camera);
+                  if (image != null) {
+                    setModalState(() {
+                      _attachedPhotoPath = image.path;
+                      _attachedPhotoName = image.name;
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AppTheme.accentMint, size: 28),
+                title: Text('🖼️ Choose from Photo Gallery', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ImagePicker picker = ImagePicker();
+                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    setModalState(() {
+                      _attachedPhotoPath = image.path;
+                      _attachedPhotoName = image.name;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _openMakeContributionSheet() {
@@ -211,30 +267,57 @@ class _ContributionScreenState extends State<ContributionScreen> {
                     _buildModalRatingSlider('🛡️ Safety Perception / Feeling', _feeling, (val) => setModalState(() => _feeling = val)),
                     const SizedBox(height: 16),
 
-                    // Crowd Density Selector (High Contrast Text)
+                    // Crowd Density Selector (High Contrast Custom Pills - 100% Text Visible)
                     Text('👥 Crowd Footfall Density:', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 8),
                     Wrap(
-                      spacing: 8,
+                      spacing: 10,
+                      runSpacing: 10,
                       children: CrowdDensity.values.map((c) {
                         final isSelected = _crowd == c;
-                        return ChoiceChip(
-                          label: Text(
-                            c.name.toUpperCase(),
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? AppTheme.primaryPurple : Colors.white,
+                        return InkWell(
+                          onTap: () => setModalState(() => _crowd = c),
+                          borderRadius: BorderRadius.circular(20),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected ? Colors.white : Colors.white38,
+                                width: isSelected ? 2.0 : 1.2,
+                              ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.white.withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSelected) ...[
+                                  const Icon(Icons.check_rounded, color: AppTheme.primaryPurple, size: 16),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  c.name.toUpperCase(),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? AppTheme.primaryPurple : Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          selected: isSelected,
-                          selectedColor: Colors.white,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          side: BorderSide(
-                            color: isSelected ? Colors.white : Colors.white38,
-                            width: 1.5,
-                          ),
-                          onSelected: (_) => setModalState(() => _crowd = c),
                         );
                       }).toList(),
                     ),
@@ -256,19 +339,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Camera / Photo Attachment Row
+                    // Camera / Photo Attachment Row with Direct Camera Option
                     Row(
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () async {
-                            final result = await FilePicker.platform.pickFiles(type: FileType.image);
-                            if (result != null && result.files.isNotEmpty) {
-                              setModalState(() {
-                                _attachedPhotoPath = result.files.first.path;
-                                _attachedPhotoName = result.files.first.name;
-                              });
-                            }
-                          },
+                          onPressed: () => _pickPhoto(setModalState),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: Colors.white70, width: 1.5),
