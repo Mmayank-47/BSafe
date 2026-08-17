@@ -165,7 +165,7 @@ class SafetyAuditService {
 
     return GamificationProfile(
       userId: userId,
-      displayAlias: 'SafetyHero_Ananya',
+      displayAlias: 'Safety Hero',
       useAlias: true,
       totalPoints: 450,
       level: 3,
@@ -214,7 +214,7 @@ class SafetyAuditService {
       LeaderboardEntry(
         rank: 1,
         userId: 'USER_DEMO_001',
-        displayName: 'SafetyHero_Ananya',
+        displayName: 'Safety Hero',
         points: 450,
         level: 3,
         levelTitle: 'Pathfinder',
