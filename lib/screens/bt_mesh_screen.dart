@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:safe/services/mesh_network_service.dart';
 import 'package:safe/services/shake_sos_service.dart';
+import 'package:safe/services/volume_sos_service.dart';
 import 'package:safe/services/women_safety_mesh_sos_service.dart';
 import 'package:safe/theme/app_theme.dart';
 
@@ -15,15 +16,18 @@ class BtMeshScreen extends StatefulWidget {
 class _BtMeshScreenState extends State<BtMeshScreen> {
   final MeshNetworkService _meshService = MeshNetworkService();
   final ShakeSosService _shakeSosService = ShakeSosService();
+  final VolumeSosService _volumeSosService = VolumeSosService();
 
   StreamSubscription<int>? _peerCountSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _inboxSubscription;
   StreamSubscription<Map<String, dynamic>>? _shakeSubscription;
+  StreamSubscription<Map<String, dynamic>>? _volumeSubscription;
 
   int _currentPeerCount = 0;
   bool _isInit = false;
   bool _isBroadcasting = false;
   bool _isShakeEnabled = true;
+  bool _isVolumeComboEnabled = true;
   String _deliveryStatus = "READY (STANDBY)";
   String? _lastSosIdHex;
   final List<String> _meshLogs = [];
@@ -75,6 +79,19 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
         );
       }
     });
+
+    _volumeSubscription = _volumeSosService.onVolumeComboSosTriggered.listen((data) {
+      if (mounted) {
+        _addLog("🚨 HARDWARE VOLUME COMBO SOS DETECTED! (3x Vol Down + 1x Vol Up)");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("🚨 HARDWARE VOLUME COMBO SOS TRIGGERED! (3x Vol Down + 1x Vol Up)"),
+            backgroundColor: Color(0xFFE11D48),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -82,6 +99,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
     _peerCountSubscription?.cancel();
     _inboxSubscription?.cancel();
     _shakeSubscription?.cancel();
+    _volumeSubscription?.cancel();
     super.dispose();
   }
 
@@ -100,6 +118,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
         _currentPeerCount = initialCount;
         _distressInbox = initialInbox;
         _isShakeEnabled = _shakeSosService.isShakeEnabled;
+        _isVolumeComboEnabled = _volumeSosService.isVolumeComboEnabled;
         _deliveryStatus = success ? "BLE MESH ONLINE (READY)" : "STANDBY (OFFLINE MESH)";
       });
       _addLog(success ? "✅ BitChat Native BLE Mesh initialized ($initialCount live nodes connected)" : "ℹ️ Mesh Engine standby mode");
@@ -149,6 +168,19 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
   Future<void> _testShakeSimulation() async {
     _addLog("⚡ Simulating vigorous phone shake trigger...");
     final res = await _shakeSosService.triggerShakeSimulation();
+    if (res != null) {
+      final updatedInbox = await _meshService.fetchAllDistressRecords();
+      if (mounted) {
+        setState(() {
+          _distressInbox = updatedInbox;
+        });
+      }
+    }
+  }
+
+  Future<void> _testVolumeComboSimulation() async {
+    _addLog("⚡ Simulating Volume Button Combo trigger (3x Vol Down + 1x Vol Up)...");
+    final res = await _volumeSosService.triggerVolumeComboSimulation();
     if (res != null) {
       final updatedInbox = await _meshService.fetchAllDistressRecords();
       if (mounted) {
@@ -436,6 +468,98 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                           icon: const Icon(Icons.screen_rotation_rounded, size: 13),
                           label: const Text(
                             "Simulate Shake",
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // HARDWARE VOLUME BUTTON COMBO SOS CONTROL CARD
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: AppTheme.glassCardDecoration(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.volume_down_rounded, color: Color(0xFFE11D48), size: 22),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Volume Combo SOS Trigger",
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        Switch(
+                          value: _isVolumeComboEnabled,
+                          activeTrackColor: const Color(0xFFE11D48),
+                          onChanged: (val) async {
+                            final newState = await _volumeSosService.toggleVolumeComboSos(val);
+                            setState(() {
+                              _isVolumeComboEnabled = newState;
+                            });
+                            _addLog(newState ? "✅ Volume Combo SOS ENABLED" : "⛔ Volume Combo SOS DISABLED");
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      "Pressing 3x Volume Down + 1x Volume Up within 4s instantly triggers emergency SOS and dispatches background SMS",
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE11D48).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.style_rounded, size: 12, color: Color(0xFFE11D48)),
+                              SizedBox(width: 4),
+                              Text(
+                                "PATTERN: 3x VOL DOWN + 1x VOL UP",
+                                style: TextStyle(
+                                  color: Color(0xFFE11D48),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: _testVolumeComboSimulation,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE11D48),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.touch_app_rounded, size: 13),
+                          label: const Text(
+                            "Simulate Combo",
                             style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
                           ),
                         ),

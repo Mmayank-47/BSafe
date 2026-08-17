@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
@@ -22,7 +23,13 @@ class MainActivity: FlutterActivity() {
     private var accelerometer: Sensor? = null
     private var shakeDetector: ShakeDetector? = null
     private var isShakeSosEnabled: Boolean = true
+    private var isVolumeComboSosEnabled: Boolean = true
     private var methodChannel: MethodChannel? = null
+    private var channelHandler: WomenSafetySosChannelHandler? = null
+
+    // Volume button pattern detection: 3x Volume Down + 1x Volume Up
+    private val volumeKeyPattern = mutableListOf<Int>()
+    private var lastVolumeKeyTime: Long = 0L
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -42,6 +49,7 @@ class MainActivity: FlutterActivity() {
         }
 
         val handler = WomenSafetySosChannelHandler(applicationContext)
+        channelHandler = handler
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel = channel
 
@@ -114,6 +122,11 @@ class MainActivity: FlutterActivity() {
                     if (enable) registerShakeListener() else unregisterShakeListener()
                     result.success(isShakeSosEnabled)
                 }
+                "toggleVolumeComboSos" -> {
+                    val enable = call.argument<Boolean>("enable") ?: true
+                    isVolumeComboSosEnabled = enable
+                    result.success(isVolumeComboSosEnabled)
+                }
                 "triggerShakeSosSimulation" -> {
                     runOnUiThread {
                         wakeUpDeviceScreen()
@@ -125,6 +138,12 @@ class MainActivity: FlutterActivity() {
                             message = "🚨 SHAKE-TO-SOS! Phone shaken vigorously - Emergency help required!"
                         )
                         channel.invokeMethod("onShakeSosTriggered", record)
+                        result.success(record)
+                    }
+                }
+                "triggerVolumeComboSosSimulation" -> {
+                    runOnUiThread {
+                        val record = triggerVolumeComboSos()
                         result.success(record)
                     }
                 }
@@ -152,6 +171,57 @@ class MainActivity: FlutterActivity() {
                 }
             }
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (isVolumeComboSosEnabled && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
+            val now = System.currentTimeMillis()
+            // Reset pattern if more than 4 seconds elapsed between key presses
+            if (now - lastVolumeKeyTime > 4000L) {
+                volumeKeyPattern.clear()
+            }
+            lastVolumeKeyTime = now
+            volumeKeyPattern.add(keyCode)
+
+            // Check for pattern: 3x VOLUME_DOWN + 1x VOLUME_UP
+            if (volumeKeyPattern.size >= 4) {
+                val last4 = volumeKeyPattern.takeLast(4)
+                if (last4[0] == KeyEvent.KEYCODE_VOLUME_DOWN &&
+                    last4[1] == KeyEvent.KEYCODE_VOLUME_DOWN &&
+                    last4[2] == KeyEvent.KEYCODE_VOLUME_DOWN &&
+                    last4[3] == KeyEvent.KEYCODE_VOLUME_UP) {
+
+                    volumeKeyPattern.clear()
+                    triggerVolumeComboSos()
+                    return true // Consume key event
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    private fun triggerVolumeComboSos(): Map<String, Any>? {
+        wakeUpDeviceScreen()
+        vibrateOnEmergency()
+        val handler = channelHandler ?: return null
+
+        val record = handler.triggerEmergencySos(
+            latitude = 21.1458,
+            longitude = 79.0882,
+            batteryLevel = 95,
+            message = "🚨 HARDWARE VOLUME COMBO SOS! (3x Vol Down + 1x Vol Up triggered) - Emergency help required!"
+        )
+
+        // Send direct background SMS to emergency contacts
+        val trustedContacts = listOf("+919109750185", "+919876543210")
+        val mapLink = "http://maps.google.com/?q=21.1458,79.0882"
+        val smsText = "🚨 HARDWARE VOLUME COMBO SOS!\nVictim: Primary User\nGPS Location: $mapLink"
+        for (phone in trustedContacts) {
+            sendDirectSms(phone, smsText)
+        }
+
+        methodChannel?.invokeMethod("onVolumeComboSosTriggered", record)
+        return record
     }
 
     private fun wakeUpDeviceScreen() {
