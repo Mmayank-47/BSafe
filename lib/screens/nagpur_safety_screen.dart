@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/services/nagpur_safety_service.dart';
 import 'package:safe/theme/app_theme.dart';
+import 'package:safe/widgets/safety/add_audit_dialog.dart';
 
 class NagpurSafetyScreen extends StatefulWidget {
   const NagpurSafetyScreen({super.key});
@@ -16,6 +18,7 @@ class _NagpurSafetyScreenState extends State<NagpurSafetyScreen> {
   String _searchQuery = '';
   String _selectedTier = 'All';
   final TextEditingController _searchController = TextEditingController();
+  StreamSubscription<String>? _streamSub;
 
   final List<String> _tiers = ['All', 'Very Safe', 'Safe', 'Moderate', 'Risky'];
 
@@ -23,6 +26,9 @@ class _NagpurSafetyScreenState extends State<NagpurSafetyScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _streamSub = _safetyService.eventStream.listen((event) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadData() async {
@@ -213,6 +219,44 @@ class _NagpurSafetyScreenState extends State<NagpurSafetyScreen> {
                       ],
                     ),
                   )),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (ctx) => AddAuditDialog(
+                      initialLat: locality.lat,
+                      initialLng: locality.lon,
+                      initialAddress: locality.place,
+                      onAuditSubmitted: () {
+                        if (mounted) setState(() {});
+                      },
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add_location_alt_rounded, color: Colors.white),
+                label: Text(
+                  'Audit & Rate Safety (+50 Pts)',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 15,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryPurple,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
         ),

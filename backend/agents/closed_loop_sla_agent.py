@@ -4,6 +4,7 @@ If an assigned responder fails to acknowledge within 45s, dynamically expands sp
 and escalates incident priority.
 """
 
+from typing import Dict, List, Optional
 from datetime import datetime
 from backend.database import db
 from backend.models import IncidentStatus
