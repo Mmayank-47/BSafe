@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:safe/screens/bt_mesh_screen.dart';
 import 'package:safe/screens/emergency_screen.dart';
 import 'package:safe/screens/feed_screen.dart';
 import 'package:safe/screens/home_screen.dart';
@@ -22,6 +23,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     LocationScreen(),
     HomeScreen(),
     EmergencyScreen(),
+    BtMeshScreen(),
     ContactsScreen(),
     FeedScreen(),
   ];
@@ -30,6 +32,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     _NavItemData(icon: Icons.map_rounded, label: 'Route Safety'),
     _NavItemData(icon: Icons.shield_rounded, label: 'Dashboard'),
     _NavItemData(icon: Icons.local_police_rounded, label: 'Emergency'),
+    _NavItemData(icon: Icons.bluetooth_searching_rounded, label: 'BT Mesh'),
     _NavItemData(icon: Icons.people_alt_rounded, label: 'Contacts'),
     _NavItemData(icon: Icons.auto_awesome_rounded, label: 'Feed'),
   ];
@@ -97,69 +100,74 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_navItems.length, (index) {
-              final isSelected = _currentIndex == index;
-              final item = _navItems[index];
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(_navItems.length, (index) {
+                final isSelected = _currentIndex == index;
+                final item = _navItems[index];
 
-              return GestureDetector(
-                onTap: () => _onTabTapped(index),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isSelected ? 16 : 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            colors: [
-                              Color(0xFF8B5CF6),
-                              Color(0xFFA855F7),
-                            ],
-                          )
-                        : null,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                return GestureDetector(
+                  onTap: () => _onTabTapped(index),
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSelected ? 12 : 8,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: isSelected
+                          ? const LinearGradient(
+                              colors: [
+                                Color(0xFF8B5CF6),
+                                Color(0xFFA855F7),
+                              ],
                             )
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        item.icon,
-                        color: isSelected ? Colors.white : const Color(0xFF94A3B8),
-                        size: 24,
-                      ),
-                      if (isSelected) ...[
-                        const SizedBox(width: 8),
-                        AnimatedOpacity(
-                          duration: const Duration(milliseconds: 200),
-                          opacity: isSelected ? 1.0 : 0.0,
-                          child: Text(
-                            item.label,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                          : null,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.icon,
+                          color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                          size: 20,
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(width: 5),
+                          AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: isSelected ? 1.0 : 0.0,
+                            child: Text(
+                              item.label,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
         ),
       ),
