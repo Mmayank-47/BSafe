@@ -213,12 +213,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     color: Colors.white, size: 20),
               ),
               const SizedBox(width: 10),
-              Text(
-                'RakshaSetu',
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E1B4B),
+              Flexible(
+                child: Text(
+                  'RakshaSetu',
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1E1B4B),
+                  ),
                 ),
               ),
               const Spacer(),

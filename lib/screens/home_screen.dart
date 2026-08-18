@@ -742,26 +742,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Safety Audit',
-                          style: GoogleFonts.outfit(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textDark,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Safety Audit',
+                            style: GoogleFonts.outfit(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.textDark,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Text(
-                          'Active Agentic Protection & Audit Engine',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            color: AppTheme.primaryPurple,
-                            fontWeight: FontWeight.w600,
+                          Text(
+                            'Active Agentic Protection & Audit Engine',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              color: AppTheme.primaryPurple,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     InkWell(
                       onTap: _showDuressDialog,

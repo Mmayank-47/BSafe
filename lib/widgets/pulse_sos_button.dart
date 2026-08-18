@@ -42,6 +42,9 @@ class _PulseSosButtonState extends State<PulseSosButton>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final effectiveSize = (screenWidth * 0.45).clamp(130.0, widget.size);
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) => setState(() => _isPressed = false),
@@ -56,15 +59,15 @@ class _PulseSosButtonState extends State<PulseSosButton>
           return Transform.scale(
             scale: scale,
             child: SizedBox(
-              width: widget.size * 1.3,
-              height: widget.size * 1.3,
+              width: effectiveSize * 1.25,
+              height: effectiveSize * 1.25,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   // Outer Glow Ring 2
                   Container(
-                    width: widget.size * pulseValue * 1.25,
-                    height: widget.size * pulseValue * 1.25,
+                    width: effectiveSize * pulseValue * 1.2,
+                    height: effectiveSize * pulseValue * 1.2,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: const Color(0xFFF43F5E).withValues(alpha: 0.12),
@@ -73,16 +76,16 @@ class _PulseSosButtonState extends State<PulseSosButton>
 
                   // Outer Glow Ring 1
                   Container(
-                    width: widget.size * pulseValue * 1.1,
-                    height: widget.size * pulseValue * 1.1,
+                    width: effectiveSize * pulseValue * 1.08,
+                    height: effectiveSize * pulseValue * 1.08,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: const Color(0xFFF43F5E).withValues(alpha: 0.22),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFFF43F5E).withValues(alpha: 0.3),
-                          blurRadius: 30,
-                          spreadRadius: 8,
+                          blurRadius: 25,
+                          spreadRadius: 6,
                         ),
                       ],
                     ),
@@ -90,8 +93,8 @@ class _PulseSosButtonState extends State<PulseSosButton>
 
                   // Central Main Button Outer Border
                   Container(
-                    width: widget.size,
-                    height: widget.size,
+                    width: effectiveSize,
+                    height: effectiveSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(

@@ -90,6 +90,7 @@ class _AppDrawerState extends State<AppDrawer> {
                         children: [
                           Text(
                             'Nikhil Makhija',
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.outfit(
                               color: Colors.white,
                               fontSize: 19,
@@ -98,6 +99,7 @@ class _AppDrawerState extends State<AppDrawer> {
                           ),
                           Text(
                             'Waranga',
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.outfit(
                               color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 13,
