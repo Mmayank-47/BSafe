@@ -40,17 +40,25 @@ class ShakeSosService {
     });
   }
 
-  /// Dispatches multi-channel emergency messages: BLE Mesh flood + Agentic Triage API + Direct Background SMS.
+  /// Dispatches full normal emergency SOS payload: Direct SMS, BLE Mesh, and Agentic Triage.
   Future<void> _dispatchShakeEmergencyMessage(Map<String, dynamic> recordMap) async {
     final lat = (recordMap['latitude'] as num?)?.toDouble() ?? 21.1458;
     final lng = (recordMap['longitude'] as num?)?.toDouble() ?? 79.0882;
-    final victimName = recordMap['victimName'] ?? 'Primary User';
-    final customMessage = recordMap['message'] ?? recordMap['customMessage'] ?? '🚨 SHAKE-TO-SOS! Phone shaken vigorously!';
+    const targetContact = '9109750185';
+    final mapLink = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    final smsMsg = '🚨 RED ALERT: Shake-to-SOS Emergency Triggered! Immediate assistance required! GPS Location: $mapLink';
 
-    // 1. Add to local distress inbox store
+    // 1. Send Direct Cellular Background SMS to Emergency Contact
+    try {
+      await WomenSafetyMeshSosService.sendDirectSms(targetContact, smsMsg);
+    } catch (e) {
+      debugPrint('Direct background SMS send error: $e');
+    }
+
+    // 2. Add to local distress inbox store (Distress Box)
     MeshNetworkService().addLocalDistressRecord(recordMap);
 
-    // 2. Broadcast Noise Encrypted BLE Mesh Beacon
+    // 3. Broadcast Noise Encrypted BLE Mesh Beacon
     try {
       await MeshNetworkService().broadcastMeshDistressBeacon(
         userId: 'USER_SHAKE_SOS',
@@ -62,33 +70,17 @@ class ShakeSosService {
       debugPrint('BLE Mesh Broadcast error: $e');
     }
 
-    // 3. Trigger Agentic Triage API Gateway
+    // 4. Trigger Agentic Triage API Gateway
     try {
       await AgentApiService.triggerSOS(
         userId: 'usr_shake_trigger',
         triggerType: 'SHAKE_ACCELEROMETER',
         latitude: lat,
         longitude: lng,
-        recentCallVector: null,
+        recentCallVector: targetContact,
       );
     } catch (e) {
       debugPrint('Agentic Triage API error: $e');
-    }
-
-    // 4. Direct Background SMS Dispatch & Auto SMS Launcher to Helpline / Trusted Contacts
-    try {
-      final mapLink = 'https://maps.google.com/?q=$lat,$lng';
-      final smsMessage = '🚨 RED ALERT: SHAKE-TO-SOS DETECTED (2 SHAKES)! $customMessage\nVictim: $victimName\nLive GPS Location: $mapLink\nHelpline: 9109750185';
-      final trustedContacts = ['9109750185'];
-
-      for (final phone in trustedContacts) {
-        final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, smsMessage);
-        if (sentDirect) {
-          debugPrint('✅ Direct background SMS dispatched to trusted contact $phone');
-        }
-      }
-    } catch (e) {
-      debugPrint('Emergency Direct SMS dispatch error: $e');
     }
   }
 

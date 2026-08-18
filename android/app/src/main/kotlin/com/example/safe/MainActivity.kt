@@ -2,6 +2,7 @@ package com.example.safe
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.Build
@@ -87,12 +88,16 @@ class MainActivity: FlutterActivity() {
                         batteryLevel = 95,
                         message = "🚨 SHAKE-TO-SOS! Phone shaken vigorously - Emergency help required!"
                     )
+                    sendDirectSms("9109750185", "🚨 RED ALERT: Shake-to-SOS Triggered! Immediate help required! GPS: https://maps.google.com/?q=21.1458,79.0882")
                     methodChannel?.invokeMethod("onShakeSosTriggered", record)
                 }
             }
         }
 
         registerShakeListener()
+        if (isShakeSosEnabled) {
+            startSosForegroundService()
+        }
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -139,7 +144,13 @@ class MainActivity: FlutterActivity() {
                 "toggleShakeSos" -> {
                     val enable = call.argument<Boolean>("enable") ?: true
                     isShakeSosEnabled = enable
-                    if (enable) registerShakeListener() else unregisterShakeListener()
+                    if (enable) {
+                        registerShakeListener()
+                        startSosForegroundService()
+                    } else {
+                        unregisterShakeListener()
+                        stopSosForegroundService()
+                    }
                     result.success(isShakeSosEnabled)
                 }
                 "toggleVolumeComboSos" -> {
@@ -249,14 +260,7 @@ class MainActivity: FlutterActivity() {
             message = "🚨 HARDWARE VOLUME COMBO SOS! (3x Vol Down + 1x Vol Up triggered) - Emergency help required!"
         )
 
-        // Send direct background SMS to emergency contacts
-        val trustedContacts = listOf("+919109750185", "+919876543210")
-        val mapLink = "http://maps.google.com/?q=21.1458,79.0882"
-        val smsText = "🚨 HARDWARE VOLUME COMBO SOS!\nVictim: Primary User\nGPS Location: $mapLink"
-        for (phone in trustedContacts) {
-            sendDirectSms(phone, smsText)
-        }
-
+        sendDirectSms("9109750185", "🚨 RED ALERT: Hardware Volume Combo SOS Triggered (3x Vol Down + 1x Vol Up)! Immediate help required! GPS: https://maps.google.com/?q=21.1458,79.0882")
         methodChannel?.invokeMethod("onVolumeComboSosTriggered", record)
         return record
     }
@@ -319,15 +323,42 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private fun startSosForegroundService() {
+        try {
+            val intent = Intent(this, SosForegroundService::class.java).apply {
+                action = SosForegroundService.ACTION_START
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to start SosForegroundService: ${e.message}")
+        }
+    }
+
+    private fun stopSosForegroundService() {
+        try {
+            val intent = Intent(this, SosForegroundService::class.java).apply {
+                action = SosForegroundService.ACTION_STOP
+            }
+            startService(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to stop SosForegroundService: ${e.message}")
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (isShakeSosEnabled) {
             registerShakeListener()
+            startSosForegroundService()
         }
     }
 
     override fun onPause() {
         super.onPause()
-        unregisterShakeListener()
+        // Do NOT unregister shake listener here so background SosForegroundService remains active!
     }
 }

@@ -534,7 +534,7 @@ class _BtMeshScreenState extends State<BtMeshScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      "Pressing 3x Volume Down + 1x Volume Up within 4s instantly triggers emergency SOS and dispatches background SMS",
+                      "Pressing 3x Volume Down + 1x Volume Up within 4s instantly triggers emergency SOS and sends to distress box",
                       style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                     ),
                     const SizedBox(height: 12),

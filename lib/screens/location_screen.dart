@@ -67,6 +67,12 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   double _navProgressFraction = 0.0;
   final MapController _navMapController = MapController();
 
+  // Navigation Pause Safety Check State
+  int _pauseEscalationAttempt = 1;
+  int _pauseSecondsRemaining = 5;
+  Timer? _pauseEscalationTimer;
+  bool _isPauseSafetyActive = false;
+
 
 
   List<SafetyLocation> _safetyLocations = [];
@@ -219,6 +225,7 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
   void dispose() {
     _positionSubscription?.cancel();
     _navTimer?.cancel();
+    _pauseEscalationTimer?.cancel();
     _route10sBannerTimer?.cancel();
     _redBlink10sTimer?.cancel();
     _redBlinkController?.dispose();
@@ -548,11 +555,290 @@ class _LocationScreenState extends State<LocationScreen> with TickerProviderStat
     setState(() {
       _isNavPaused = !_isNavPaused;
     });
-    Fluttertoast.showToast(msg: _isNavPaused ? "⏸️ Navigation Paused" : "▶️ Resuming Navigation");
+    if (_isNavPaused) {
+      Fluttertoast.showToast(msg: "⏸️ Navigation Paused - Performing Safety Check");
+      _showPauseSafetyCheckDialog();
+    } else {
+      _pauseEscalationTimer?.cancel();
+      _isPauseSafetyActive = false;
+      Fluttertoast.showToast(msg: "▶️ Resuming Safe Navigation");
+    }
+  }
+
+  void _showPauseSafetyCheckDialog() {
+    if (!mounted || _isPauseSafetyActive) return;
+    _isPauseSafetyActive = true;
+    _pauseEscalationAttempt = 1;
+    _pauseSecondsRemaining = 5;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            _pauseEscalationTimer?.cancel();
+            _pauseEscalationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+              if (_pauseSecondsRemaining > 1) {
+                if (mounted) setDialogState(() => _pauseSecondsRemaining--);
+              } else {
+                timer.cancel();
+                if (_pauseEscalationAttempt < 2) {
+                  if (mounted) {
+                    setDialogState(() {
+                      _pauseEscalationAttempt++;
+                      _pauseSecondsRemaining = 5;
+                    });
+                  }
+                } else {
+                  Navigator.of(dialogCtx, rootNavigator: true).pop();
+                  _isPauseSafetyActive = false;
+                  _fireQuickNavigationSOS('Auto Quick SOS: Navigation Paused & No response to safety check.');
+                }
+              }
+            });
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF991B1B),
+                      Color(0xFF7F1D1D),
+                      Color(0xFF450A0A),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: Colors.redAccent, width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.redAccent,
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white54),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.pause_circle_filled_rounded, color: Colors.yellowAccent, size: 20),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '⏸️ SAFE NAVIGATION PAUSED',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 90,
+                          height: 90,
+                          child: CircularProgressIndicator(
+                            value: _pauseSecondsRemaining / 5.0,
+                            strokeWidth: 6,
+                            backgroundColor: Colors.white24,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellowAccent),
+                          ),
+                        ),
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$_pauseSecondsRemaining',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    Text(
+                      'ARE YOU SAFE?',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    Text(
+                      'Navigation paused along $_currentTraversingAreaName',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        color: Colors.yellowAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    Text(
+                      'Attempt $_pauseEscalationAttempt of 2 (Auto Quick SOS in ${_pauseSecondsRemaining + (2 - _pauseEscalationAttempt) * 5}s)',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _pauseEscalationTimer?.cancel();
+                              Navigator.of(dialogCtx, rootNavigator: true).pop();
+                              _isPauseSafetyActive = false;
+                              Fluttertoast.showToast(
+                                msg: "🟢 Safe Navigation Paused Safely.",
+                                backgroundColor: const Color(0xFF10B981),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
+                            label: Text(
+                              'YES, Safe',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _pauseEscalationTimer?.cancel();
+                              Navigator.of(dialogCtx, rootNavigator: true).pop();
+                              _isPauseSafetyActive = false;
+                              _fireQuickNavigationSOS('User pressed NO (Need Help) while Navigation was Paused!');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            icon: const Icon(Icons.sos_rounded, color: Colors.white),
+                            label: Text(
+                              'NO, Help!',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _fireQuickNavigationSOS(String reason) async {
+    const phone = '9109750185';
+    final targetLat = lat ?? 21.1458;
+    final targetLon = long ?? 79.0882;
+    final mapLink = "https://www.google.com/maps/search/?api=1&query=$targetLat,$targetLon";
+    final message = '🚨 QUICK EMERGENCY SOS ALERT! $reason Live GPS Location: $mapLink';
+
+    // 1. Send Direct Cellular Background SMS
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, message);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Quick SOS Direct SMS sent to $phone!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    }
+
+    // 2. Broadcast BLE Mesh Beacon
+    try {
+      await WomenSafetyMeshSosService.triggerEmergencySos(
+        latitude: targetLat,
+        longitude: targetLon,
+        batteryLevel: 95,
+        message: message,
+      );
+    } catch (_) {}
+
+    // 3. Launch SOS Screen
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AlertMessageScreen(
+            initialLat: targetLat,
+            initialLon: targetLon,
+            initialRecentCallVector: phone,
+          ),
+        ),
+      );
+    }
   }
 
   void _endInAppNavigation() {
     _navTimer?.cancel();
+    _pauseEscalationTimer?.cancel();
+    _isPauseSafetyActive = false;
     setState(() {
       _isNavigating = false;
       _isNavPaused = false;

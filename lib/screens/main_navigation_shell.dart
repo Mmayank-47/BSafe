@@ -15,7 +15,11 @@ import 'dart:async';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:safe/services/shake_sos_service.dart';
+import 'package:safe/services/volume_sos_service.dart';
+import 'package:safe/services/edge_audio_engine.dart';
 import 'package:safe/services/women_safety_mesh_sos_service.dart';
+import 'package:safe/services/agent_api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
@@ -28,6 +32,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   StreamSubscription<Map<String, dynamic>>? _shakeSubscription;
+  StreamSubscription<Map<String, dynamic>>? _volumeSubscription;
+  StreamSubscription<String>? _hotwordSubscription;
+  bool _isEscalationActive = false;
+  int _escalationAttempt = 1;
+  int _secondsRemaining = 5;
+  Timer? _escalationTimer;
 
   @override
   void initState() {
@@ -35,17 +45,35 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     _shakeSubscription = ShakeSosService().onShakeSosTriggered.listen((data) {
       _handleShakeSosTriggered(data);
     });
+    _volumeSubscription = VolumeSosService().onVolumeComboSosTriggered.listen((data) {
+      _handleVolumeSosTriggered(data);
+    });
+
+    EdgeAudioEngine().startEngine();
+    _hotwordSubscription = EdgeAudioEngine().hotwordStream.listen((hotword) {
+      debugPrint('[MainNavigationShell] 🚨 HOTWORD MATCH RECEIVED: $hotword');
+      _triggerVoiceEmergencyEscalation(hotword);
+    });
+  }
+
+  @override
+  void dispose() {
+    _shakeSubscription?.cancel();
+    _volumeSubscription?.cancel();
+    _hotwordSubscription?.cancel();
+    _escalationTimer?.cancel();
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _handleShakeSosTriggered(Map<String, dynamic> data) async {
-    final lat = (data['latitude'] as num?)?.toDouble() ?? 21.1458;
-    final lng = (data['longitude'] as num?)?.toDouble() ?? 79.0882;
-
     if (!mounted) return;
 
-    // 1. Generate High-Priority Red Color Error Message Banner & Toast
+    final lat = (data['latitude'] as num?)?.toDouble();
+    final lng = (data['longitude'] as num?)?.toDouble();
+
     Fluttertoast.showToast(
-      msg: "🚨 RED ALERT: Shake SOS Triggered (2 Shakes)! Launching Auto SMS...",
+      msg: "🚨 RED ALERT: Shake SOS Triggered! Opening SOS Control & Direct SMS.",
       toastLength: Toast.LENGTH_LONG,
       backgroundColor: const Color(0xFFDC2626),
       textColor: Colors.white,
@@ -69,7 +97,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 color: Colors.white24,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.error_outline_rounded, color: Colors.white, size: 26),
+              child: const Icon(Icons.shield_outlined, color: Colors.white, size: 26),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -86,7 +114,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                     ),
                   ),
                   Text(
-                    '2 Shakes Detected! Redirecting to Emergency Auto SMS (9109750185)...',
+                    '2 Shakes Detected! Full Normal SOS triggered & dispatches Direct SMS + BLE Mesh.',
                     style: GoogleFonts.outfit(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 12,
@@ -101,28 +129,389 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       ),
     );
 
-    // 2. Direct Background Auto SMS (bypasses message app UI send button)
-    final smsMessage = '🚨 RED ALERT: SHAKE-TO-SOS DETECTED (2 SHAKES)! Immediate Help Needed!\nLive GPS Location: https://maps.google.com/?q=$lat,$lng\nHelpline: 9109750185';
-    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms('9109750185', smsMessage);
-    if (sentDirect) {
-      Fluttertoast.showToast(
-        msg: "✅ Auto SMS directly sent to 9109750185!",
-        toastLength: Toast.LENGTH_SHORT,
-        backgroundColor: const Color(0xFF10B981),
-        textColor: Colors.white,
-      );
-    }
-
-    // 3. Open Alert Message Screen (SOS Call Log Vector)
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (ctx) => AlertMessageScreen(
+        builder: (_) => AlertMessageScreen(
           initialLat: lat,
           initialLon: lng,
           initialRecentCallVector: '9109750185',
         ),
       ),
     );
+  }
+
+  void _handleVolumeSosTriggered(Map<String, dynamic> data) async {
+    if (!mounted) return;
+
+    final lat = (data['latitude'] as num?)?.toDouble();
+    final lng = (data['longitude'] as num?)?.toDouble();
+
+    Fluttertoast.showToast(
+      msg: "🚨 HARDWARE VOLUME COMBO SOS DETECTED! Opening SOS Control & Direct SMS.",
+      toastLength: Toast.LENGTH_LONG,
+      backgroundColor: const Color(0xFFE11D48),
+      textColor: Colors.white,
+      fontSize: 14,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF9F1239),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFFDA4AF), width: 1.8),
+        ),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.white24,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.volume_down_rounded, color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '🚨 HARDWARE VOLUME COMBO SOS DETECTED!',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    'Volume Combo (3x Vol Down + 1x Vol Up) Detected! Full Normal SOS dispatched.',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AlertMessageScreen(
+          initialLat: lat,
+          initialLon: lng,
+          initialRecentCallVector: '9109750185',
+        ),
+      ),
+    );
+  }
+
+  void _triggerVoiceEmergencyEscalation(String triggerReason) {
+    if (!mounted || _isEscalationActive) return;
+    _isEscalationActive = true;
+    _escalationAttempt = 1;
+    _secondsRemaining = 5;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '🚨 VOICE DISTRESS DETECTED: $triggerReason',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    _showRedAlertEscalationDialog(triggerReason);
+  }
+
+  void _showRedAlertEscalationDialog(String triggerReason) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            _escalationTimer?.cancel();
+            _escalationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+              if (_secondsRemaining > 1) {
+                if (mounted) setDialogState(() => _secondsRemaining--);
+              } else {
+                timer.cancel();
+                if (_escalationAttempt < 2) {
+                  if (mounted) {
+                    setDialogState(() {
+                      _escalationAttempt++;
+                      _secondsRemaining = 5;
+                    });
+                  }
+                } else {
+                  Navigator.of(dialogCtx, rootNavigator: true).pop();
+                  _isEscalationActive = false;
+                  _executeEmergencyCallAndSms('Automatic Escalation: No response after 2 safety checks ($triggerReason)');
+                }
+              }
+            });
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF991B1B),
+                      Color(0xFF7F1D1D),
+                      Color(0xFF450A0A),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: Colors.redAccent, width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.redAccent,
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white54),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.yellowAccent, size: 20),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '🚨 RED ALERT SIGN: VOICE DISTRESS',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 90,
+                          height: 90,
+                          child: CircularProgressIndicator(
+                            value: _secondsRemaining / 5.0,
+                            strokeWidth: 6,
+                            backgroundColor: Colors.white24,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellowAccent),
+                          ),
+                        ),
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$_secondsRemaining',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'ARE YOU SAFE?',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Emergency Voice Trigger: "$triggerReason"',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        color: Colors.yellowAccent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Attempt $_escalationAttempt of 2 (Auto Helpline Call in ${_secondsRemaining + (2 - _escalationAttempt) * 5}s)',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _escalationTimer?.cancel();
+                              Navigator.of(dialogCtx, rootNavigator: true).pop();
+                              _isEscalationActive = false;
+                              Fluttertoast.showToast(
+                                msg: "🟢 Situation Normal. Alert Cancelled.",
+                                backgroundColor: const Color(0xFF10B981),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
+                            label: Text(
+                              'YES, Safe',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _escalationTimer?.cancel();
+                              Navigator.of(dialogCtx, rootNavigator: true).pop();
+                              _isEscalationActive = false;
+                              _executeEmergencyCallAndSms('User pressed NO (Need Help)! Trigger: $triggerReason');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            icon: const Icon(Icons.sos_rounded, color: Colors.white),
+                            label: Text(
+                              'NO, Help!',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _executeEmergencyCallAndSms(String reason) async {
+    const phone = '9109750185';
+    double lat = 21.1458;
+    double lon = 79.0882;
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 3),
+        ),
+      );
+      lat = pos.latitude;
+      lon = pos.longitude;
+    } catch (_) {}
+
+    final message = '🚨 EMERGENCY RAKSHASETU ALERT! $reason Live GPS Location: https://maps.google.com/?q=$lat,$lon Helpline: $phone';
+
+    final sentDirect = await WomenSafetyMeshSosService.sendDirectSms(phone, message);
+    if (sentDirect) {
+      Fluttertoast.showToast(
+        msg: "✅ Emergency Auto SMS directly sent to $phone!",
+        toastLength: Toast.LENGTH_SHORT,
+        backgroundColor: const Color(0xFF10B981),
+        textColor: Colors.white,
+      );
+    }
+
+    try {
+      await AgentApiService.triggerSOS(
+        userId: 'usr_voice_hotword',
+        triggerType: 'ACOUSTIC_HOTWORD',
+        latitude: lat,
+        longitude: lon,
+        recentCallVector: phone,
+      );
+    } catch (_) {}
+
+    final telUri = Uri.parse('tel:$phone');
+    try {
+      await launchUrl(telUri);
+    } catch (_) {}
+
+    Fluttertoast.showToast(
+      msg: "🚨 Emergency Call & SMS Dispatched to 9109750185!",
+      toastLength: Toast.LENGTH_LONG,
+      backgroundColor: Colors.red,
+    );
+
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AlertMessageScreen(
+            initialLat: lat,
+            initialLon: lon,
+            initialRecentCallVector: phone,
+          ),
+        ),
+      );
+    }
   }
 
   void _onSmartWakeLDetected() async {
@@ -182,13 +571,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         curve: Curves.easeOutCubic,
       );
     }
-  }
-
-  @override
-  void dispose() {
-    _shakeSubscription?.cancel();
-    _pageController.dispose();
-    super.dispose();
   }
 
   @override
