@@ -1,6 +1,5 @@
 # bSafe
-
-Welcome to bSafe, a comprehensive women's safety app designed to provide you with peace of mind and support in times of need. Whether you're commuting, traveling, or simply going about your daily activities, bSafe is here to ensure your safety with a suite of powerful features.
+bSafe is a comprehensive women's safety application designed to provide real-time assistance during emergencies. The platform combines emergency SOS alerts, location tracking, emergency-service discovery, and safety-focused resources to help users respond quickly during potentially dangerous situations.
 
 ## Demo Preview   
 [![bSafe Demo](https://img.youtube.com/vi/gUbb2mIZKwU/1.jpg)](https://youtu.be/gUbb2mIZKwU)  
@@ -23,6 +22,7 @@ Download the latest APK and start playing! 🎮
 - [Technologies Used](#technologies-used)
 - [Usage](#usage)
 - [Installation](#installation)
+- [Team & Contributions](#team--contributions)
 
 ## Screenshots
 ![WhatsApp Image 2024-06-09 at 11 28 24_e43ad016](https://github.com/ajax-39/CodeClauseInternship_bSafe/assets/129135590/df66c66c-b11d-4e8c-8236-d86ab80ad258)
@@ -102,4 +102,21 @@ To get a local copy up and running, follow these simple steps:
         firebase init
         ```
     Follow the prompts to set up Firestore, Authentication, and Cloud Messaging.
+
+## Team & Contributions
+
+bSafe was developed as a **hackathon team project**, with team members collaborating across application development, backend integration, location services, UI/UX, testing, and project presentation.
+
+The project was built collaboratively, with different team members contributing to the design, implementation, integration, and testing of various features.
+
+### Contribution Areas
+
+- **Mobile Application Development:** Flutter-based application development, UI implementation, and feature integration.
+- **Emergency & Safety Features:** SOS alerts, trusted contacts, emergency-service discovery, and location-based functionality.
+- **Backend & Cloud Integration:** Firebase integration, data management, authentication, and application services.
+- **Location & Mapping:** Real-time location tracking, maps, markers, and navigation features.
+- **Testing & Integration:** Feature testing, debugging, integration, and preparation of the final application.
+- **Presentation & Demonstration:** Project documentation, hackathon presentation, and live demonstration.
+
+> **Note:** bSafe is a collaborative hackathon project and the repository represents the combined work of the team rather than an individual contribution.
 
