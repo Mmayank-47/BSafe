@@ -53,7 +53,9 @@ async def bg_sla_checker():
 @app.on_event("startup")
 async def startup_event():
     print("[SERVER] bSafe Agentic Real-Time Safety Ecosystem Gateway Started.")
-    asyncio.create_task(bg_sla_checker())
+    import os
+    if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME") and not os.environ.get("NETLIFY"):
+        asyncio.create_task(bg_sla_checker())
 
 @app.get("/")
 def health_check():

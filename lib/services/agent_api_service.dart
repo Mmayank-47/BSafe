@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:safe/services/safety_audit_service.dart';
 
 /// Client service communicating with the bSafe Autonomous Agentic Backend API Gateway.
 class AgentApiService {
@@ -8,10 +9,22 @@ class AgentApiService {
   static String baseUrl = 'http://127.0.0.1:8000';
   static String wsUrl = 'ws://127.0.0.1:8000/nostr/relay/subscribe';
 
-  /// Update the base URL dynamically (e.g. for physical devices)
+  /// Resolves the effective base URL, auto-detecting Netlify host when deployed
+  static String get resolvedBaseUrl {
+    if (kIsWeb && Uri.base.host.contains('netlify.app')) {
+      return Uri.base.origin;
+    }
+    return baseUrl;
+  }
+
+  /// Update the base URL dynamically (e.g. for physical devices or deployed backend)
   static void setBaseUrl(String newUrl) {
     baseUrl = newUrl;
-    wsUrl = 'ws://${Uri.parse(newUrl).host}:${Uri.parse(newUrl).port}/nostr/relay/subscribe';
+    final uri = Uri.parse(newUrl);
+    final wsScheme = uri.scheme == 'https' ? 'wss' : 'ws';
+    final portSuffix = (uri.hasPort && uri.port != 80 && uri.port != 443) ? ':${uri.port}' : '';
+    wsUrl = '$wsScheme://${uri.host}$portSuffix/nostr/relay/subscribe';
+    SafetyAuditService.setBaseUrl(newUrl);
   }
 
   /// POST /api/v1/auth/register
@@ -23,7 +36,7 @@ class AgentApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/auth/register'),
+        Uri.parse('$resolvedBaseUrl/api/v1/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
@@ -55,7 +68,7 @@ class AgentApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/journey/start'),
+        Uri.parse('$resolvedBaseUrl/api/v1/journey/start'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
@@ -94,7 +107,7 @@ class AgentApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/sos/trigger'),
+        Uri.parse('$resolvedBaseUrl/api/v1/sos/trigger'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
@@ -135,7 +148,7 @@ class AgentApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/mesh/relay'),
+        Uri.parse('$resolvedBaseUrl/api/v1/mesh/relay'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'relay_node_id': relayNodeId,

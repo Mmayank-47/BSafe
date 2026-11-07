@@ -11,7 +11,16 @@ class SafetyAuditService {
   factory SafetyAuditService() => _instance;
   SafetyAuditService._internal();
 
-  static const String baseUrl = 'http://127.0.0.1:8000/safety';
+  static String baseUrl = 'http://127.0.0.1:8000/safety';
+  static String get resolvedBaseUrl {
+    if (kIsWeb && Uri.base.host.contains('netlify.app')) {
+      return '${Uri.base.origin}/safety';
+    }
+    return baseUrl;
+  }
+  static void setBaseUrl(String newUrl) {
+    baseUrl = newUrl.endsWith('/safety') ? newUrl : '$newUrl/safety';
+  }
   static const String kOfflineDraftsKey = 'safety_offline_draft_audits';
 
   final StreamController<String> _eventStreamController =
@@ -26,7 +35,7 @@ class SafetyAuditService {
   }) async {
     try {
       final response = await http
-          .get(Uri.parse('$baseUrl/locations/nearby?lat=$lat&lng=$lng&radius_km=$radiusKm'))
+          .get(Uri.parse('$resolvedBaseUrl/locations/nearby?lat=$lat&lng=$lng&radius_km=$radiusKm'))
           .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
@@ -77,7 +86,7 @@ class SafetyAuditService {
     try {
       final response = await http
           .post(
-            Uri.parse('$baseUrl/audits'),
+            Uri.parse('$resolvedBaseUrl/audits'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(auditData),
           )
@@ -140,7 +149,7 @@ class SafetyAuditService {
   Future<bool> upvoteAudit(String auditId, String userId) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/audits/$auditId/upvote?user_id=$userId'),
+        Uri.parse('$resolvedBaseUrl/audits/$auditId/upvote?user_id=$userId'),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -153,7 +162,7 @@ class SafetyAuditService {
   Future<GamificationProfile> fetchUserProfile(String userId) async {
     try {
       final response = await http
-          .get(Uri.parse('$baseUrl/users/$userId/profile'))
+          .get(Uri.parse('$resolvedBaseUrl/users/$userId/profile'))
           .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
@@ -198,7 +207,7 @@ class SafetyAuditService {
     String? city,
   }) async {
     try {
-      var url = '$baseUrl/leaderboard?scope=$scope';
+      var url = '$resolvedBaseUrl/leaderboard?scope=$scope';
       if (city != null) url += '&city=$city';
 
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 3));
@@ -312,7 +321,7 @@ class SafetyAuditService {
       try {
         final draftJson = jsonDecode(draftStr);
         final res = await http.post(
-          Uri.parse('$baseUrl/audits'),
+          Uri.parse('$resolvedBaseUrl/audits'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(draftJson),
         );

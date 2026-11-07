@@ -1,0 +1,46 @@
+[build]
+  publish = "build/web"
+  functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
+
+# --- Backend API Routes (Serverless Python FastAPI on Netlify) ---
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/safety/*"
+  to = "/.netlify/functions/api/safety/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/docs"
+  to = "/.netlify/functions/api/docs"
+  status = 200
+
+[[redirects]]
+  from = "/openapi.json"
+  to = "/.netlify/functions/api/openapi.json"
+  status = 200
+
+# --- Frontend SPA (Flutter Web) ---
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer-when-downgrade"
+
+[[headers]]
+  for = "*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
